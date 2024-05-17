@@ -1,5 +1,6 @@
 import { Cell } from "./Cell"
 import { Bishop, King, Knight, Pawn, Piece, PieceType, Queen, Rook } from "./Piece"
+import { standardPieces } from "./StandardPieces"
 
 export enum Color {
     WHITE = 1,
@@ -9,6 +10,13 @@ export enum Color {
 export enum MicroState {
     IDLE = 0,
     MOVING = 1,
+    PROMOTING = 2,
+}
+
+export enum SpecialInstruction {
+    EN_PASSANT,
+    CASTLE,
+    PROMOTE,
 }
 
 export class GameState {
@@ -18,8 +26,9 @@ export class GameState {
     microState: MicroState
     selectedFrom: Cell | null
     selectedTo: Cell | null
-    moveHistory: [Cell, Cell, Piece | null][]
+    moveHistory: [Cell, Cell, Piece | null, SpecialInstruction | null][]
     winner: Color | null
+    specialInstructions: any[]
 
     constructor() {
         this.turn = Color.WHITE
@@ -32,41 +41,9 @@ export class GameState {
                 return new Cell({ rank: rank + 1, file: file + 1 })
             })
         })
+        this.specialInstructions = []
         this.winner = null
-        this.pieces = [
-            new Rook({ initRank: 1, initFile: 1, color: Color.WHITE, cell: this.board[0][0] }),
-            new Knight({ initRank: 1, initFile: 2, color: Color.WHITE, cell: this.board[0][1] }),
-            new Bishop({ initRank: 1, initFile: 3, color: Color.WHITE, cell: this.board[0][2] }),
-            new Queen({ initRank: 1, initFile: 4, color: Color.WHITE, cell: this.board[0][3] }),
-            new King({ initRank: 1, initFile: 5, color: Color.WHITE, cell: this.board[0][4] }),
-            new Bishop({ initRank: 1, initFile: 6, color: Color.WHITE, cell: this.board[0][5] }),
-            new Knight({ initRank: 1, initFile: 7, color: Color.WHITE, cell: this.board[0][6] }),
-            new Rook({ initRank: 1, initFile: 8, color: Color.WHITE, cell: this.board[0][7] }),
-            new Pawn({ initRank: 2, initFile: 1, color: Color.WHITE, cell: this.board[1][0] }),
-            new Pawn({ initRank: 2, initFile: 2, color: Color.WHITE, cell: this.board[1][1] }),
-            new Pawn({ initRank: 2, initFile: 3, color: Color.WHITE, cell: this.board[1][2] }),
-            new Pawn({ initRank: 2, initFile: 4, color: Color.WHITE, cell: this.board[1][3] }),
-            new Pawn({ initRank: 2, initFile: 5, color: Color.WHITE, cell: this.board[1][4] }),
-            new Pawn({ initRank: 2, initFile: 6, color: Color.WHITE, cell: this.board[1][5] }),
-            new Pawn({ initRank: 2, initFile: 7, color: Color.WHITE, cell: this.board[1][6] }),
-            new Pawn({ initRank: 2, initFile: 8, color: Color.WHITE, cell: this.board[1][7] }),
-            new Pawn({ initRank: 7, initFile: 1, color: Color.BLACK, cell: this.board[6][0] }),
-            new Pawn({ initRank: 7, initFile: 2, color: Color.BLACK, cell: this.board[6][1] }),
-            new Pawn({ initRank: 7, initFile: 3, color: Color.BLACK, cell: this.board[6][2] }),
-            new Pawn({ initRank: 7, initFile: 4, color: Color.BLACK, cell: this.board[6][3] }),
-            new Pawn({ initRank: 7, initFile: 5, color: Color.BLACK, cell: this.board[6][4] }),
-            new Pawn({ initRank: 7, initFile: 6, color: Color.BLACK, cell: this.board[6][5] }),
-            new Pawn({ initRank: 7, initFile: 7, color: Color.BLACK, cell: this.board[6][6] }),
-            new Pawn({ initRank: 7, initFile: 8, color: Color.BLACK, cell: this.board[6][7] }),
-            new Rook({ initRank: 8, initFile: 1, color: Color.BLACK, cell: this.board[7][0] }),
-            new Knight({ initRank: 8, initFile: 2, color: Color.BLACK, cell: this.board[7][1] }),
-            new Bishop({ initRank: 8, initFile: 3, color: Color.BLACK, cell: this.board[7][2] }),
-            new Queen({ initRank: 8, initFile: 4, color: Color.BLACK, cell: this.board[7][3] }),
-            new King({ initRank: 8, initFile: 5, color: Color.BLACK, cell: this.board[7][4] }),
-            new Bishop({ initRank: 8, initFile: 6, color: Color.BLACK, cell: this.board[7][5] }),
-            new Knight({ initRank: 8, initFile: 7, color: Color.BLACK, cell: this.board[7][6] }),
-            new Rook({ initRank: 8, initFile: 8, color: Color.BLACK, cell: this.board[7][7] }),
-        ];
+        this.pieces = standardPieces(this.board);
         this.pieces.forEach(piece => {
             piece.cell.place(piece)
         })
@@ -102,11 +79,6 @@ export class GameState {
         this.selectedTo = null
     }
 
-    globalValidation(from: Cell, to: Cell): boolean {
-        // TODO: validate checks, pins, and promotions
-        return true
-    }
-
     computePressure() {
         this.board.forEach(row => {
             row.forEach(cell => {
@@ -126,8 +98,8 @@ export class GameState {
             }
         }
     }
-
-    move(from: Cell, to: Cell) {
+    
+    validate(from: Cell, to: Cell) {
         if (!from.piece) {
             throw new Error("No piece to move")
         }
@@ -137,18 +109,31 @@ export class GameState {
         if (!from.piece.validateMove(this, from, to, false)) {
             throw new Error("Invalid move: this piece cannot move like that")
         }
-        if (!this.globalValidation(from, to)) {
-            throw new Error("Invalid move")
-        }
+    }
 
-        this.moveHistory.push([from, to, to.piece])
-        if (to.piece) {
-            to.piece.isCaptured = true
-            to.remove();
+    move(from: Cell, to: Cell) {
+        this.validate(from, to);
+        // const instruction = this.specialInstructions.pop() ?? null
+        const instruction = null
+        if (instruction == SpecialInstruction.EN_PASSANT) {
+            this.moveHistory.push([from, to, null, instruction])
+            this.castle(from, to, false)
+        } else if (instruction == SpecialInstruction.CASTLE) {
+            this.moveHistory.push([from, to, null, instruction])
+            this.enPassantCapture(from, to, false)
+        } else if (instruction == SpecialInstruction.PROMOTE) {
+            this.moveHistory.push([from, to, null, instruction])
+            this.initPromotion()
+        } else {
+            this.moveHistory.push([from, to, to.piece, null])
+            if (from.piece!.firstMovedOnTurn == -1) {
+                from.piece!.firstMovedOnTurn = this.moveHistory.length;
+            }
+            this.attemptCapture(from, to, to.piece, false)
+            to.place(from.piece!);
+            from.remove();
         }
-        to.place(from.piece);
-        from.remove();
-
+        
         this.turn = this.turn === Color.WHITE ? Color.BLACK : Color.WHITE;
         this.microState = MicroState.IDLE;
         this.computePressure();
@@ -158,15 +143,57 @@ export class GameState {
         if (this.moveHistory.length == 0) {
             throw new Error("No moves to undo")
         }
-        const [from, to, piece] = this.moveHistory.pop()!
-        from.place(to.piece!)
-        to.remove()
-        if (piece) {
-            to.place(piece) // un-capture
-            to.piece!.isCaptured = false
+        const [from, to, piece, instruction] = this.moveHistory.pop()!
+        if (instruction == SpecialInstruction.EN_PASSANT) {
+            this.castle(from, to, true)
+        } else if (instruction == SpecialInstruction.CASTLE) {
+            this.enPassantCapture(from, to, true)
+        } else if (instruction == SpecialInstruction.PROMOTE) {
+            this.promote(from, to, piece!, true)
+        } else {   
+            from.place(to.piece!)
+            to.remove()
+            this.attemptCapture(from, to, piece, true)
+            if (from.piece!.firstMovedOnTurn <= this.moveHistory.length) {
+                from.piece!.firstMovedOnTurn = -1
+            }
         }
         this.turn = this.turn === Color.WHITE ? Color.BLACK : Color.WHITE;
         this.microState = MicroState.IDLE;
         this.computePressure();
+    }
+
+    attemptCapture(from: Cell, to: Cell, piece: Piece | null, isUndo: boolean) {
+        if (isUndo && piece) {
+            piece.isCaptured = false
+            to.place(piece);
+        } else if (to.piece) {
+            to.piece.isCaptured = true
+            to.remove();
+        }
+    }
+
+    enPassantCapture(from: Cell, to: Cell, isUndo: boolean) {
+        console.log("successful en passant move detected")
+        // TODO: Use the move history to find the correct pawn to capture; it will be on the to-file and from-rank of the capturer. 
+        // To undo an En Passant, the captured piece is un-captured the to-file and from-rank of the capturer.
+    }
+
+    castle(kingFrom: Cell, kingTo: Cell, isUndo: boolean) {
+        console.log("successful castle move detected")
+        // TODO: Find & move the correct rook, then move the king
+        // To undo a castle, the rook is moved to the square it started the game on
+    }
+
+    promote(from: Cell, to: Cell, promotionPiece: Piece, isUndo: boolean) {
+        console.log("successful promotion move detected")
+        // TODO: "capture" the pawn and place the new piece on the to cell
+        // The instruction is already pushed to the move history, so we overwrite it with the piece the user wants to promote.
+        // To undo a promotion, the new piece returns to a "captured" state and the pawn is un-captured. 
+    }
+
+    initPromotion() {
+        console.log("successful promotion move detected")
+        this.microState = MicroState.PROMOTING;
     }
 }

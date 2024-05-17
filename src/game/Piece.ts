@@ -1,6 +1,6 @@
 import { Cell } from "./Cell"
-import { Color, GameState } from "./GameState"
-import { validateDiagonal, validateStraight } from "./pathValidation"
+import { Color, GameState, SpecialInstruction } from "./GameState"
+import { outOfBounds, validateDiagonal, validateStraight } from "./pathValidation"
 
 export type PieceProps = {
     color: Color,
@@ -28,6 +28,7 @@ export class Piece {
     cell: Cell
     type: PieceType
     isCaptured: boolean
+    firstMovedOnTurn: number
     constructor(props: PieceProps) {
         this.materialValue = 0
         this.rank = props.initRank
@@ -37,6 +38,7 @@ export class Piece {
         this.cell = props.cell
         this.type = PieceType.NULL
         this.isCaptured = false
+        this.firstMovedOnTurn = -1
     }
     validateMove(gameState: GameState, from: Cell, to: Cell, ignoreBattery: boolean): boolean {
         if (!ignoreBattery) {
@@ -62,15 +64,36 @@ export class Pawn extends Piece {
             }
         }
         // Check if pawn is capturing a piece
-        if ((to.piece && (to.piece.color != this.color)) || ignoreBattery) {
+        if (ignoreBattery || (to.piece && (to.piece.color != this.color))) {
             if (to.rank - from.rank == this.color && Math.abs(from.file - to.file) == 1) {
-                return super.validateMove(gameState, from, to, ignoreBattery);
-            } else {
-                return false
+                if (ignoreBattery || (to.piece && (to.piece.color != this.color))) {
+                    return super.validateMove(gameState, from, to, ignoreBattery);
+                } else {
+                    const [enPassantFrom, enPassantTo, enPassantPiece, instruction] = gameState.moveHistory[gameState.moveHistory.length - 1]
+                    if (
+                        to.rank == Color.WHITE ? 5 : 4 &&
+                        enPassantTo.piece?.type == PieceType.PAWN &&
+                        Math.abs(enPassantFrom.rank - enPassantTo.rank) == 2 &&
+                        enPassantFrom.file == to.file
+                    ) {
+                        if (!ignoreBattery) {
+                            gameState.specialInstructions.push(SpecialInstruction.EN_PASSANT)
+                        }
+                        return true
+                    } else {
+                        return false
+                    }
+                }
             }
-        } 
+        }
         // Move 1 step forward
-        return ignoreBattery ? false : (to.rank - from.rank == this.color && to.file == from.file && super.validateMove(gameState, from, to, ignoreBattery));
+        if (ignoreBattery ? false : (to.rank - from.rank == this.color && to.file == from.file && super.validateMove(gameState, from, to, ignoreBattery))) {
+            if (!ignoreBattery && to.rank == (this.color == Color.WHITE ? 8 : 1)) {
+                gameState.specialInstructions.push(SpecialInstruction.PROMOTE)
+            }
+            return true;
+        }
+        return false;
     }
 }
 
@@ -149,7 +172,41 @@ export class King extends Piece {
         this.type = PieceType.KING
     }
     validateMove(gameState: GameState, from: Cell, to: Cell, ignoreBattery: boolean): boolean {
-        return Math.abs(from.rank - to.rank) <= 1 && Math.abs(from.file - to.file) <= 1 && super.validateMove(gameState, from, to, ignoreBattery);
+        if (Math.abs(from.rank - to.rank) <= 1 && Math.abs(from.file - to.file) <= 1 
+            && super.validateMove(gameState, from, to, ignoreBattery)) {
+            return true
+        } else if (!ignoreBattery && 
+            // King wants to move 2 steps
+            Math.abs(from.rank - to.rank) == 0 && Math.abs(from.file - to.file) == 2 && 
+            // King is not in check
+            from.targetingPieces.get(this.color == Color.WHITE ? Color.BLACK : Color.WHITE)?.length == 0 &&
+            // King has not moved
+            this.firstMovedOnTurn == -1 &&
+            // King is not castling into check
+            gameState.board[from.rank - 1][to.file - 1].targetingPieces.get(this.color == Color.WHITE ? Color.BLACK : Color.WHITE)!.length == 0
+        ) {
+            let file = from.file + (to.file - from.file) / 2
+            // King is not walking through an attacked square
+            if (gameState.board[from.rank - 1][file - 1].targetingPieces.get(this.color == Color.WHITE ? Color.BLACK : Color.WHITE)!.length > 0) {
+                return false
+            }
+            // Nothing between king and rook
+            while (!outOfBounds(gameState, from.rank, file)) {
+                const piece = gameState.board[from.rank - 1][file - 1].piece
+                // Rook has not moved
+                if (piece) {
+                    if (piece?.type == PieceType.ROOK && piece.firstMovedOnTurn == -1) {
+                        gameState.specialInstructions.push(SpecialInstruction.CASTLE)
+                        return true
+                    } else {
+                        return false
+                    }
+                }
+                file += (to.file - from.file) / 2
+            }
+            return false
+        }
+        return false
     }
 }
 
