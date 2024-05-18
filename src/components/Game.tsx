@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Color, GameState } from "./game/GameState";
-import { Cell, CellColor } from "./game/Cell";
+import { Color, GameState, TurnProgress } from "../game/GameState";
+import { Cell, CellColor } from "../game/Cell";
+import PromotionPanel from "./PromotionPanel";
 
 export const Game = () => {
     const [gameState, setGameState] = useState<GameState>(new GameState())
@@ -33,7 +34,15 @@ export const Game = () => {
             </div>
         </div>        
     }
+
     return <div>
+        {gameState.turnProgress == TurnProgress.PROMOTING ?
+        <PromotionPanel 
+            gameState={gameState} 
+            callback={() => {
+                updateGameState()
+            }}
+        /> : null}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 24 }}>
                 {gameState.turn == Color.WHITE ? "White's turn" : "Black's turn"}
@@ -46,13 +55,22 @@ export const Game = () => {
             </div>
         </div>
         <div style={{ margin: 20, display: 'flex', flexDirection: 'column' }}>
-            {gameState.board.slice().reverse().map((row, index) => {
-                return <div key={gameState.board.length - index - 1} style={{ display: 'flex', flexDirection: 'row' }}>
-                    {row.map((cell, index) => {
-                        return renderCell(cell)
-                    })}
-                </div>
-            })}
+            {gameState.turn == Color.WHITE ? 
+                gameState.board.slice().reverse().map((row, index) => {
+                    return <div key={gameState.board.length - index - 1} style={{ display: 'flex', flexDirection: 'row' }}>
+                        {row.map((cell) => {
+                            return renderCell(cell)
+                        })}
+                    </div>
+                }) : 
+                gameState.board.map((row, index) => {
+                    return <div key={index} style={{ display: 'flex', flexDirection: 'row' }}>
+                        {row.slice().reverse().map((cell) => {
+                            return renderCell(cell)
+                        })}
+                    </div>
+                })
+            }
         </div>
     </div>
     ;

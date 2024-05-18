@@ -13,7 +13,7 @@ export type CellProps = {
 
 export class Cell {
     color: CellColor
-    piece: Piece | null
+    piece?: Piece
     rank: number
     file: number
     isSelected: boolean
@@ -22,7 +22,6 @@ export class Cell {
         this.rank = props.rank
         this.file = props.file
         this.color = props.rank % 2 === props.file % 2 ? CellColor.LIGHT : CellColor.DARK
-        this.piece = null
         this.isSelected = false
         this.targetingPieces = new Map<Color, Piece[]>()
         this.targetingPieces.set(Color.WHITE, [])
@@ -31,13 +30,11 @@ export class Cell {
 
     place(piece: Piece) {
         this.piece = piece
-        this.piece.rank = this.rank
-        this.piece.file = this.file
         this.piece.cell = this
     }
 
     remove() {
-        this.piece = null
+        this.piece = undefined
     }
 
     select() {
@@ -46,5 +43,9 @@ export class Cell {
 
     deselect() {
         this.isSelected = false
+    }
+
+    getName() {
+        return `${String.fromCharCode(96 + this.file)}${this.rank}`
     }
 }
