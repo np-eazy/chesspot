@@ -1,5 +1,5 @@
 import { Square } from "./Square"
-import { King, Piece, PieceType, Queen } from "./Piece"
+import { Bishop, King, Knight, Piece, PieceType, Queen, Rook } from "./Piece"
 import { standardPieces } from "./config/standardPieces"
 
 export enum Color {
@@ -75,11 +75,13 @@ export class GameState {
                 square.select()
             }
         } else if (this.moveStage === MoveStage.MOVING) {
+            this.moveStage = MoveStage.IDLE
             if (!square.piece || square.piece.color !== this.toMove) {
                 this.move(this.selectedSquare!, square)
             }
-            this.moveStage = MoveStage.IDLE
             this.clearSelection()
+        } else if (this.moveStage === MoveStage.PROMOTING) {
+            throw new Error("Select a promotion piece before proceeding.")
         }
     }
 
@@ -199,36 +201,7 @@ export class GameState {
             }
         }
         this.toMove *= -1;
-        this.moveStage = MoveStage.IDLE;
         this.computeTargets();
-    }
-
-    // Replace the existing move with a promotion; this is the only type of move with up to 3 swaps, in the case
-    // that a pawn captures on promotion. 
-    amendPromotionMove(pieceType: PieceType) {
-        const swaps = this.moveHistory[this.moveHistory.length - 1].swaps;
-        this.undo();
-        const newSwaps: Swap[] = []
-        swaps.forEach(swap => {
-            if (swap.piece && swap.from && !swap.to) { // A capture swap is of the opposite color and doesn't need to be refactored
-                newSwaps.push(swap)
-            } else if (swap.piece && swap.from && swap.to) { // The other swap is the pawn itself, and we "capture" it and add in a new piece.
-                const promotionPiece = new Queen({
-                    color: this.toMove,
-                    initRank: swap.to.rank,
-                    initFile: swap.to.file,
-                    square: swap.to,
-                })
-                this.pieces.push(promotionPiece)
-                newSwaps.push({ piece: swap.piece, from: swap.from })
-                newSwaps.push({ piece: promotionPiece, to: swap.to })
-                // TODO: Make sure that the pawn isn't treated the same as other captured pieces in later features
-            }
-        })
-        this.executeSwaps({
-            moveType: MoveType.PROMOTION,
-            swaps: newSwaps,
-        });
     }
 
     // Check if the current king is in check, or if it is on a square that is being attacked by the opposite color.
@@ -253,8 +226,66 @@ export class GameState {
                 this.moveStage = MoveStage.PROMOTING;
                 // TODO: No auto-queen, make a feature that allows the user to select a piece to promote to. 
                 // Save executionPromotion for a callback
-                this.amendPromotionMove(PieceType.QUEEN);
+                // this.amendPromotionMove(PieceType.QUEEN);
         }
+    }
+
+    // Replace the existing move with a promotion; this is the only type of move with up to 3 swaps, in the case
+    // that a pawn captures on promotion. 
+    amendPromotionMove(pieceType: PieceType) {
+        const swaps = this.moveHistory[this.moveHistory.length - 1].swaps;
+        this.undo();
+        const newSwaps: Swap[] = []
+        swaps.forEach(swap => {
+            if (swap.piece && swap.from && !swap.to) { // A capture swap is of the opposite color and doesn't need to be refactored
+                newSwaps.push(swap)
+            } else if (swap.piece && swap.from && swap.to) { // The other swap is the pawn itself, and we "capture" it and add in a new piece.
+                let promotionPiece;
+                switch (pieceType) {
+                    case PieceType.KNIGHT:
+                        promotionPiece = new Knight({
+                            color: this.toMove,
+                            initRank: swap.to.rank,
+                            initFile: swap.to.file,
+                            square: swap.to,
+                        });
+                        break;
+                    case PieceType.BISHOP:
+                        promotionPiece = new Bishop({
+                            color: this.toMove,
+                            initRank: swap.to.rank,
+                            initFile: swap.to.file,
+                            square: swap.to,
+                        });
+                        break;
+                    case PieceType.ROOK:
+                        promotionPiece = new Rook({
+                            color: this.toMove,
+                            initRank: swap.to.rank,
+                            initFile: swap.to.file,
+                            square: swap.to,
+                        });
+                        break;
+                    default:
+                        promotionPiece = new Queen({
+                            color: this.toMove,
+                            initRank: swap.to.rank,
+                            initFile: swap.to.file,
+                            square: swap.to,
+                        });
+                        break;
+                }
+                this.pieces.push(promotionPiece!)
+                newSwaps.push({ piece: swap.piece, from: swap.from })
+                newSwaps.push({ piece: promotionPiece, to: swap.to })
+                // TODO: Make sure that the pawn isn't treated the same as other captured pieces in later features
+            }
+        })
+        this.executeSwaps({
+            moveType: MoveType.PROMOTION,
+            swaps: newSwaps,
+        });
+        this.moveStage = MoveStage.IDLE
     }
 
     undo() {

@@ -36,13 +36,13 @@ export const Game = () => {
     }
 
     return <div>
-        {gameState.moveStage == MoveStage.PROMOTING ?
+        {gameState.moveStage === MoveStage.PROMOTING &&
         <PromotionPanel 
             gameState={gameState} 
             callback={() => {
                 updateGameState()
             }}
-        /> : null}
+        />}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 24 }}>
                 {gameState.toMove == Color.WHITE ? "White's turn" : "Black's turn"}

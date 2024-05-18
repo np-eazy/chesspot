@@ -6,7 +6,7 @@ export default function PromotionPanel(props: {
     gameState: GameState 
     callback: () => void
 }) {
-    const [selectedPiece, setSelectedPiece] = useState<PieceType>(PieceType.QUEEN);
+    const [selectedPiece, setSelectedPiece] = useState<PieceType>(PieceType.NULL);
 
     const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newPieceType = event.target.value as PieceType;
