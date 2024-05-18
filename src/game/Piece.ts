@@ -1,4 +1,4 @@
-import { Cell } from "./Cell"
+import { Square } from "./Square"
 import { Color, GameState, MoveType } from "./GameState"
 import { outOfBounds, validateDiagonal, validateStraight } from "./pathValidation"
 
@@ -6,7 +6,7 @@ export type PieceProps = {
     color: Color,
     initRank: number,
     initFile: number,
-    cell: Cell
+    square: Square
 }
 
 export enum PieceType {
@@ -23,24 +23,24 @@ export class Piece {
     color: Color
     materialValue: number
     symbol: string
-    cell: Cell
+    square: Square
     type: PieceType
     isCaptured: boolean
-    firstMovedOnTurn: number
+    firstMovedOn: number
     constructor(props: PieceProps) {
         this.materialValue = 0
         this.color = props.color
         this.symbol = ""
-        this.cell = props.cell
+        this.square = props.square
         this.type = PieceType.NULL
         this.isCaptured = false
-        this.firstMovedOnTurn = -1
+        this.firstMovedOn = -1
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         if (!from.piece) {
-            throw new Error("No piece to move")
+            return MoveType.INVALID
         }
-        if (!passive && from.piece.color !== gameState.turn) {
+        if (!passive && from.piece.color !== gameState.toMove) {
             return MoveType.INVALID
         }
         if (!passive) {
@@ -50,7 +50,7 @@ export class Piece {
         }
     }
     getName() {
-        return `${this.type} ${String.fromCharCode(96 + this.cell.file)}${this.cell.rank}`
+        return `${this.type} ${String.fromCharCode(96 + this.square.file)}${this.square.rank}`
     }
 }
 
@@ -61,7 +61,7 @@ export class Pawn extends Piece {
         this.symbol = this.color == Color.WHITE ? "♙" : "♟";
         this.type = PieceType.PAWN
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         // Check if pawn is on starting rank and moving 2 steps forward
         if (!passive && from.rank == (this.color == Color.WHITE ? 2 : 7)) {
             if (to.rank - from.rank == 2 * this.color && from.file == to.file) {
@@ -73,7 +73,7 @@ export class Pawn extends Piece {
             if (passive || (to.piece && (to.piece.color != this.color))) {
                 return super.validateAndGetMoveType(gameState, from, to, passive);
             } else if (!passive && !to.piece) { // Check if pawn is doing en passant
-                const lastTurn = gameState.turnHistory[gameState.turnHistory.length - 1]
+                const lastTurn = gameState.moveHistory[gameState.moveHistory.length - 1]
                 const lastSwap = lastTurn.swaps[0]
                 if (lastTurn.swaps.length != 1 
                     || !lastSwap.piece 
@@ -97,6 +97,7 @@ export class Pawn extends Piece {
         
         // Move 1 step forward
         if (passive ? false : (to.rank - from.rank == this.color && to.file == from.file 
+            && !to.piece
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID)) {
             return MoveType.NORMAL;
         }
@@ -111,7 +112,7 @@ export class Knight extends Piece {
         this.symbol = this.color == Color.WHITE ? "♘" : "♞";
         this.type = PieceType.KNIGHT
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         if (Math.abs(from.rank - to.rank) == 2 && Math.abs(from.file - to.file) == 1) {
             return super.validateAndGetMoveType(gameState, from, to, passive);
         }
@@ -129,7 +130,7 @@ export class Bishop extends Piece {
         this.symbol = this.color == Color.WHITE ? "♗" : "♝";
         this.type = PieceType.BISHOP
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         if ((Math.abs(from.rank - to.rank) == Math.abs(from.file - to.file)) 
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             return validateDiagonal(gameState, from, to, passive) ? MoveType.NORMAL : MoveType.INVALID
@@ -145,7 +146,7 @@ export class Rook extends Piece {
         this.symbol = this.color == Color.WHITE ? "♖" : "♜";
         this.type = PieceType.ROOK
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         if ((from.rank == to.rank || from.file == to.file) 
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             return validateStraight(gameState, from, to, passive) ? MoveType.NORMAL : MoveType.INVALID
@@ -161,7 +162,7 @@ export class Queen extends Piece {
         this.symbol = this.color == Color.WHITE ? "♕" : "♛";
         this.type = PieceType.QUEEN
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         if (super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             if (Math.abs(from.rank - to.rank) == Math.abs(from.file - to.file)) {
                 return validateDiagonal(gameState, from, to, passive) ? MoveType.NORMAL : MoveType.INVALID
@@ -180,26 +181,25 @@ export class King extends Piece {
         this.symbol = this.color == Color.WHITE ? "♔" : "♚";
         this.type = PieceType.KING
     }
-    validateAndGetMoveType(gameState: GameState, from: Cell, to: Cell, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
         if (Math.abs(from.rank - to.rank) <= 1 && Math.abs(from.file - to.file) <= 1 
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             return MoveType.NORMAL
-
         } else if (!passive && 
             Math.abs(from.rank - to.rank) == 0 && Math.abs(from.file - to.file) == 2 && // King wants to move 2 steps
-            this.firstMovedOnTurn == -1 && // King has not moved
+            this.firstMovedOn == -1 && // King has not moved
             from.targetingPieces.get(this.color * -1)!.length == 0 && // King is not in check
-            gameState.getCell(to.rank, to.file).targetingPieces.get(this.color * -1)!.length == 0 // King is not castling into check
+            gameState.square(to.rank, to.file).targetingPieces.get(this.color * -1)!.length == 0 // King is not castling into check
         ) {
-            const dxn = (to.file - from.file) / 2;
-            let file = from.file + dxn;  // King is not walking through an attacked square
-            if (gameState.getCell(from.rank, file).targetingPieces.get(this.color * -1)!.length > 0) {
+            const dxn = (to.file - from.file) / 2; // King is not walking through an attacked or obstructed square
+            let file = from.file + dxn;  
+            if (gameState.square(from.rank, file).targetingPieces.get(this.color * -1)!.length > 0) {
                 return MoveType.INVALID
             }
             while (!outOfBounds(gameState, from.rank, file)) { // Nothing between king and rook
-                const piece = gameState.getCell(from.rank, file).piece
+                const piece = gameState.square(from.rank, file).piece
                 if (piece) {
-                    if (piece?.type == PieceType.ROOK && piece.firstMovedOnTurn == -1) { // Rook has not moved
+                    if (piece?.type == PieceType.ROOK && piece.firstMovedOn == -1) { // Rook has not moved
                         return MoveType.CASTLE
                     } else {
                         return MoveType.INVALID
@@ -207,22 +207,16 @@ export class King extends Piece {
                 }
                 file += dxn;
             }
-            return MoveType.INVALID
         }
         return MoveType.INVALID
     }
-    findCastlingRook(gameState: GameState, from: Cell, to: Cell): Rook {
+    findCastlingRook(gameState: GameState, from: Square, to: Square): Rook {
         const dxn = (to.file - from.file) / 2;
-        let file = this.cell.file + dxn;
-        while (!outOfBounds(gameState, this.cell.rank, file) && gameState.getCell(this.cell.rank, file).piece?.type != PieceType.ROOK) {
+        let file = this.square.file + dxn;
+        while (!outOfBounds(gameState, this.square.rank, file) && gameState.square(this.square.rank, file).piece?.type != PieceType.ROOK) {
             file += dxn;
         }
-        try {
-            const rook: Piece = gameState.getCell(this.cell.rank, file).piece!
-            return rook
-        } catch (e) {
-            throw new Error("Castling rook not found. Make sure that the conditions to castle are correctly detected.")
-        }
+        const rook: Piece = gameState.square(this.square.rank, file).piece!
+        return rook
     }
 }
-

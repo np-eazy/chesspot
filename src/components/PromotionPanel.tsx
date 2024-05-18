@@ -10,7 +10,7 @@ export default function PromotionPanel(props: {
 
     const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newPieceType = event.target.value as PieceType;
-        props.gameState.executePromotion(newPieceType);
+        props.gameState.amendPromotionMove(newPieceType);
         props.callback();
     };
     return (

@@ -1,7 +1,6 @@
-import { Cell } from "./Cell"
+import { Square } from "./Square"
 import { GameState, MoveType } from "./GameState"
 import { Piece, PieceType } from "./Piece"
-
 
 export const outOfBounds = (gameState: GameState, rank: number, file: number): boolean => {
     return rank < 1 || rank > 8 || file < 1 || file > 8
@@ -19,19 +18,19 @@ export const batteryCheck = (mainPiece: Piece, batteryPiece: Piece, pieceType: P
     }
     return true
 }
-// "Passive" is added to reuse the same code to count pressure on a square, in which case batteried pieces can "pass through" each other.
-export const validateDiagonal = (gameState: GameState, from: Cell, to: Cell, passive: boolean): boolean => {
+
+export const validateDiagonal = (gameState: GameState, from: Square, to: Square, passive: boolean): boolean => {
     let [rank, file] = [from.rank + (to.rank > from.rank ? 1 : -1), from.file + (to.file > from.file ? 1 : -1)]
     while (!outOfBounds(gameState, rank, file) && rank != to.rank && file != to.file) {
-        if (gameState.getCell(rank, file).piece) {
+        if (gameState.square(rank, file).piece) {
             if (!passive) {
                 return false
             } else {
-                const batteryPiece = gameState.getCell(rank, file).piece
+                const batteryPiece = gameState.square(rank, file).piece
                 if (batteryPiece && batteryPiece.color == from.piece?.color) {
                     if (batteryPiece.type == PieceType.PAWN) {
                         if ((to.rank - from.rank) * batteryPiece.color > 0) {
-                            return batteryPiece.validateAndGetMoveType(gameState, batteryPiece.cell, to, passive) != MoveType.INVALID
+                            return batteryPiece.validateAndGetMoveType(gameState, batteryPiece.square, to, passive) != MoveType.INVALID
                         } else {
                             return false
                         }
@@ -47,15 +46,15 @@ export const validateDiagonal = (gameState: GameState, from: Cell, to: Cell, pas
     return true
 }
 
-export const validateStraight = (gameState: GameState, from: Cell, to: Cell, passive: boolean): boolean => {
+export const validateStraight = (gameState: GameState, from: Square, to: Square, passive: boolean): boolean => {
     if (from.rank == to.rank) {
         let file = from.file + (to.file > from.file ? 1 : -1)
         while (!outOfBounds(gameState, from.rank, file) && file != to.file) {
-            if (gameState.getCell(from.rank, file).piece) {
+            if (gameState.square(from.rank, file).piece) {
                 if (!passive) {
                     return false
                 } else {
-                    const batteryPiece = gameState.getCell(from.rank, file).piece
+                    const batteryPiece = gameState.square(from.rank, file).piece
                     return batteryCheck(from.piece!, batteryPiece!, PieceType.ROOK)
                 }
             }
@@ -66,11 +65,11 @@ export const validateStraight = (gameState: GameState, from: Cell, to: Cell, pas
     if (from.file == to.file) {
         let rank = from.rank + (to.rank > from.rank ? 1 : -1)
         while (!outOfBounds(gameState, rank, from.file) && rank != to.rank) {
-            if (gameState.getCell(rank, from.file).piece) {
+            if (gameState.square(rank, from.file).piece) {
                 if (!passive) {
                     return false
                 } else {
-                    const batteryPiece = gameState.getCell(rank, from.file).piece
+                    const batteryPiece = gameState.square(rank, from.file).piece
                     return batteryCheck(from.piece!, batteryPiece!, PieceType.ROOK)
                 }
             }

@@ -1,13 +1,13 @@
-import { Cell } from "./Cell"
+import { Square } from "./Square"
 import { King, Piece, PieceType, Queen } from "./Piece"
-import { standardPieces } from "./StandardPieces"
+import { standardPieces } from "./config/standardPieces"
 
 export enum Color {
     WHITE = 1,
     BLACK = -1,
 }
 
-export enum TurnProgress {
+export enum MoveStage {
     IDLE = 0,
     MOVING = 1,
     PROMOTING = 2,
@@ -19,282 +19,249 @@ export enum MoveType {
     EN_PASSANT = 1,
     CASTLE = 2,
     PROMOTION = 3,
- }
+}
 
+// Each move consists of one or more swaps, and at least one swap must have all three attributes.
 export type Swap = {
     piece?: Piece, // If this is undefined, ignore.
-    from?: Cell, // If this is undefined, the piece was promoted.
-    to?: Cell, // If this is undefined, the piece was captured.
+    from?: Square, // If this is undefined, the piece was promoted.
+    to?: Square, // If this is undefined, the piece was captured.
 }
 
 export type Move = {
-    swaps: Swap[], // Castling, En Passant, and Promotion involve multiple moves per turn.
-    moveType: MoveType | null, // If this is null, the turn is a normal move.
+    moveType: MoveType | null, // If this is null, the move is a normal move.
+    swaps: Swap[], // Castling, En Passant, and Promotion involve multiple moves per move.
 }
 
 export class GameState {
-    board: Cell[][]
+    board: Square[][]
     pieces: Piece[]
-
-    turn: Color
-    turnProgress: TurnProgress
-    turnHistory: Move[]
-
-    selectedCell: Cell | null
-    winner: Color | null
+    toMove: Color
+    moveStage: MoveStage
+    moveHistory: Move[]
+    selectedSquare: Square | null
 
     constructor() {
         this.board = Array.from({ length: 8 }, (_, rank) => {
             return Array.from({ length: 8 }, (_, file) => {
-                return new Cell({ rank: rank + 1, file: file + 1 })
+                return new Square({ rank: rank + 1, file: file + 1 })
             })
         })
         this.pieces = standardPieces(this.board);
         this.pieces.forEach(piece => {
-            piece.cell.place(piece)
+            piece.square.place(piece)
         })
 
-        this.turn = Color.WHITE
-        this.turnProgress = TurnProgress.IDLE
-        this.turnHistory = []
-        this.selectedCell = null
-
-        this.winner = null
+        this.toMove = Color.WHITE
+        this.moveStage = MoveStage.IDLE
+        this.moveHistory = []
+        this.selectedSquare = null
     }
 
-    getCell(rank: number, file: number) {
+    handleError(e: Error) {
+        this.clearSelection();
+        console.error(e);
+    }
+
+    square(rank: number, file: number) {
         return this.board[rank - 1][file - 1]
     }
 
-    select(cell: Cell) {
-        if (this.turnProgress === TurnProgress.IDLE) {
-            if (cell.piece && cell.piece.color === this.turn) {
-                this.selectedCell = cell
-                cell.select()
-                this.turnProgress = TurnProgress.MOVING
+    selectAndAdvance(square: Square) {
+        if (this.moveStage === MoveStage.IDLE) {
+            if (square.piece && square.piece.color === this.toMove) {
+                this.moveStage = MoveStage.MOVING
+                this.selectedSquare = square
+                square.select()
             }
-        } else if (this.turnProgress === TurnProgress.MOVING) {
-            if (cell === this.selectedCell) { // Deselect the from cell
-                this.clearSelection()
-            } else if (!cell.piece || cell.piece.color !== this.turn) {
-                this.move(this.selectedCell!, cell)
-                this.clearSelection()
+        } else if (this.moveStage === MoveStage.MOVING) {
+            if (!square.piece || square.piece.color !== this.toMove) {
+                this.move(this.selectedSquare!, square)
             }
-            this.turnProgress = TurnProgress.IDLE
+            this.moveStage = MoveStage.IDLE
+            this.clearSelection()
         }
     }
 
     clearSelection() {
         this.board.forEach(row => {
-            row.forEach(cell => {
-                cell.deselect()
+            row.forEach(square => {
+                square.deselect()
             })
         })
-        this.selectedCell = null
+        this.selectedSquare = null
     }
 
-    // Compute which pieces are targeting which cells.
+    // Compute which pieces are targeting which square.
     computeTargets() {
         this.board.forEach(row => {
-            row.forEach(cell => {
-                cell.targetingPieces.set(Color.WHITE, [])
-                cell.targetingPieces.set(Color.BLACK, [])
+            row.forEach(square => {
+                square.targetingPieces.set(Color.WHITE, [])
+                square.targetingPieces.set(Color.BLACK, [])
                 this.pieces.filter(piece => !piece.isCaptured).forEach(piece => {
-                    if (piece && piece.validateAndGetMoveType(this, piece.cell, cell, true) != MoveType.INVALID) {
-                        cell.targetingPieces.get(piece.color)!.push(piece)
+                    if (piece && piece.validateAndGetMoveType(this, piece.square, square, true) != MoveType.INVALID) {
+                        square.targetingPieces.get(piece.color)!.push(piece)
                     }
                 })
             })
         })
     }
-
-    // Check if the current king is in check, or if it is on a square that is being attacked by the opposite color.
-    processCheckCondition() {
-        const king = this.pieces.find(piece => piece && (piece.type == PieceType.KING) && (piece.color != this.turn))
-        if (king) {
-            if (king.cell.targetingPieces.get(king.color * -1)!.length > 0) {
-                this.undo();
+    
+    validateAndGetMoveType(piece: Piece, from: Square, to: Square): MoveType {
+        if (piece && from) {
+            if (!from.piece 
+                || (from.piece !== piece) 
+                || (from.piece.color !== piece.color)) {
+                this.handleError(new Error(`Piece ${piece.getName()} is not connected to square ${from.getName()}`))
+            }
+            if (piece.isCaptured) {
+                this.handleError(new Error(`Piece ${piece.getName()} is already captured.`))
             }
         }
+        return piece.validateAndGetMoveType(this, from, to, false);
     }
 
-    // Check if the last move was a pawn moving onto the last rank; if so, set the turn progress to PROMOTING
-    // so that the UI can offer the user a list of pieces to promote to.
-    processPromotionCondition() {
-        const turn = this.turnHistory[this.turnHistory.length - 1];
-        const movement = turn.swaps.filter(swap => swap.piece && swap.from && swap.to)[0];
-        if (movement 
-            && turn.moveType == MoveType.NORMAL
-            && movement.piece && movement.piece.type == PieceType.PAWN
-            && movement.to && movement.to.rank == (movement.piece.color == Color.WHITE ? 8 : 1)) {
-                this.turnProgress = TurnProgress.PROMOTING;
-                // TODO: No auto-queen, make a feature that allows the user to select a piece to promote to.
-                this.executePromotion(PieceType.QUEEN);
+    move(from: Square, to: Square) {
+        const moveType = this.validateAndGetMoveType(from.piece!, from, to);
+        if (moveType == MoveType.INVALID) {
+            return
+        } else if (moveType == MoveType.EN_PASSANT) {
+            this.executeSwaps({
+                moveType: moveType, // Capturing pawn
+                swaps: [{ piece: from.piece!, from: from, to: to }, 
+                {
+                    piece: this.square(to.rank - this.toMove, to.file).piece!, // Captured pawn
+                    from: this.square(to.rank - this.toMove, to.file),
+                }],
+            })
+        } else if (moveType == MoveType.CASTLE) {
+            const rook = (from.piece! as King).findCastlingRook(this, from, to)
+            this.executeSwaps({
+                moveType: moveType, // King
+                swaps: [{ piece: from.piece!, from: from, to: to }, 
+                {
+                    piece: rook, // Rook
+                    from: rook.square,
+                    to: this.square(rook.square.rank, from.file + (rook.square.file > from.file ? 1 : -1)),
+                }], 
+            })
+        } else { 
+            const swaps: any[] = [{ piece: from.piece,from: from,to: to }]
+            if (to.piece) { // Capture
+                swaps.push({ piece: to.piece, from: to })
+            }
+            this.executeSwaps({ moveType: moveType, swaps: swaps })
         }
+        // Condition processing is done after moving
+        // If there are illegal situations like entering a check, the move is undone.
+        this.processCheckCondition(); 
+        // If a promotion occurs, the executed move in history is amended to include the promotion of user's choice.
+        this.processPromotionCondition();
+    }
+
+    executeSwaps(move: Move, undo: boolean = false, amend: boolean = false) {
+        if (!undo) {
+            this.moveHistory.push(move);
+        }
+        for (const swap of move.swaps // Order of operations: first captures, then everything else
+            .sort((a, b) => [a, b]
+                .map((m: Swap): number => m.to ? 0 : 1)
+                .reduce((prev, curr, i) => prev + curr * (undo?-1:1) * (i%2?1:-1), 0) // a - b if not undo, b - a if undo
+        )) {
+            if (swap.piece) {
+                if (!undo) {
+                    if (swap.from && !swap.to) { // Capture
+                        swap.piece.isCaptured = true
+                        swap.from.remove()
+                    } else if (swap.from && swap.to) { // Normal Move
+                        swap.to.place(swap.piece)
+                        swap.from.remove()
+                    } else if (!swap.from && swap.to) { // Promotion
+                        swap.to.place(swap.piece)
+                    }
+                    if (swap.piece.firstMovedOn == -1) {
+                        swap.piece.firstMovedOn = this.moveHistory.length;
+                    }
+                } else {
+                    if (swap.from && !swap.to) { // Un-capture
+                        swap.piece.isCaptured = false
+                        swap.from.place(swap.piece)
+                    } else if (swap.from && swap.to) { // Un-normal Move
+                        swap.from.place(swap.piece)
+                        swap.to.remove()
+                    } else if (!swap.from && swap.to) { // Promotion
+                        swap.to.remove()
+                    }
+                    if (swap.piece.firstMovedOn <= this.moveHistory.length + 1) {
+                        swap.piece.firstMovedOn = -1;
+                    }
+                }
+            }
+        }
+        this.toMove *= -1;
+        this.moveStage = MoveStage.IDLE;
+        this.computeTargets();
     }
 
     // Replace the existing move with a promotion; this is the only type of move with up to 3 swaps, in the case
     // that a pawn captures on promotion. 
-    executePromotion(pieceType: PieceType) {
-        const swaps = this.turnHistory[this.turnHistory.length - 1].swaps;
+    amendPromotionMove(pieceType: PieceType) {
+        const swaps = this.moveHistory[this.moveHistory.length - 1].swaps;
         this.undo();
         const newSwaps: Swap[] = []
         swaps.forEach(swap => {
             if (swap.piece && swap.from && !swap.to) { // A capture swap is of the opposite color and doesn't need to be refactored
                 newSwaps.push(swap)
-            } else if (swap.piece && swap.from && swap.to) { 
-                console.log("HEY MORTY I TURNED MYSELF INTO A FUCKING QUEEN MORTY")
+            } else if (swap.piece && swap.from && swap.to) { // The other swap is the pawn itself, and we "capture" it and add in a new piece.
                 const promotionPiece = new Queen({
-                    color: this.turn,
+                    color: this.toMove,
                     initRank: swap.to.rank,
                     initFile: swap.to.file,
-                    cell: swap.to,
+                    square: swap.to,
                 })
                 this.pieces.push(promotionPiece)
-                newSwaps.push({ // The other swap is the pawn itself, and we "capture" it and add in a new piece.
-                    piece: swap.piece,
-                    from: swap.from,
-                })
-                newSwaps.push({
-                    piece: promotionPiece,
-                    to: swap.to,
-                })
-                // TODO: Make sure that the pawn isn't treated the same as other captured pieces, even though it uses the same flag.
+                newSwaps.push({ piece: swap.piece, from: swap.from })
+                newSwaps.push({ piece: promotionPiece, to: swap.to })
+                // TODO: Make sure that the pawn isn't treated the same as other captured pieces in later features
             }
         })
-        this.turnHistory.push({
+        this.executeSwaps({
             moveType: MoveType.PROMOTION,
             swaps: newSwaps,
-        })
-        this.executeTurn(this.turnHistory[this.turnHistory.length - 1]);
+        });
     }
 
-    validateSwap(swap: Swap) { // Extra checks just to make sure the move is valid.
-        if (swap.piece && swap.from) {
-            if (!swap.from.piece 
-                || (swap.from.piece !== swap.piece) 
-                || (swap.from.piece.color !== swap.piece.color)) {
-                throw new Error(`Piece ${swap.piece!.getName()} is not connected to square/cell ${swap.from.getName()}`)
-            }
-            if (swap.piece.isCaptured) {
-                throw new Error(`Piece ${swap.piece!.getName()} is already captured.`)
+    // Check if the current king is in check, or if it is on a square that is being attacked by the opposite color.
+    processCheckCondition() {
+        const king = this.pieces.find(piece => piece && (piece.type == PieceType.KING) && (piece.color != this.toMove))
+        if (king) {
+            if (king.square.targetingPieces.get(king.color * -1)!.length > 0) {
+                this.undo();
             }
         }
-    }
-    
-    validateAndGetMoveType(piece: Piece, from: Cell, to: Cell): MoveType {
-        if (!piece) {
-            throw new Error("No piece to move")
-        }
-        this.validateSwap({piece: piece, from: from, to: to});
-        return piece.validateAndGetMoveType(this, from, to, false);
     }
 
-    move(from: Cell, to: Cell) {
-        const moveType = this.validateAndGetMoveType(from.piece!, from, to);
-        if (moveType == MoveType.INVALID) {
-            return
+    // Check if the last move was a pawn moving onto the last rank; if so, set the move progress to PROMOTING
+    // so that the UI can offer the user a list of pieces to promote to.
+    processPromotionCondition() {
+        const move = this.moveHistory[this.moveHistory.length - 1];
+        const swap = move.swaps.filter(swap => swap.piece && swap.from && swap.to)[0];
+        if (swap 
+            && move.moveType == MoveType.NORMAL
+            && swap.piece && swap.piece.type == PieceType.PAWN
+            && swap.to && swap.to.rank == (swap.piece.color == Color.WHITE ? 8 : 1)) {
+                this.moveStage = MoveStage.PROMOTING;
+                // TODO: No auto-queen, make a feature that allows the user to select a piece to promote to. 
+                // Save executionPromotion for a callback
+                this.amendPromotionMove(PieceType.QUEEN);
         }
-        if (moveType == MoveType.EN_PASSANT) {
-            const turn = {
-                moveType: moveType,
-                swaps: [{
-                    piece: from.piece!, // Capturing pawn
-                    from: from,
-                    to: to,
-                }, {
-                    piece: this.getCell(to.rank - this.turn, to.file).piece!, // Captured pawn
-                    from: this.getCell(to.rank - this.turn, to.file),
-                }],
-            }
-            this.turnHistory.push(turn)
-        } else if (moveType == MoveType.CASTLE) {
-            const rook = (from.piece! as King).findCastlingRook(this, from, to)
-            const turn = {
-                moveType: moveType,
-                swaps: [{
-                    piece: from.piece!, // King
-                    from: from,
-                    to: to,
-                }, {
-                    piece: rook, // Rook
-                    from: rook.cell,
-                    to: this.getCell(rook.cell.rank, from.file + (rook.cell.file > from.file ? 1 : -1)),
-                }], 
-            }
-            this.turnHistory.push(turn)
-        } else {
-            const swaps: any[] = [{
-                piece: from.piece,
-                from: from,
-                to: to,
-            }]
-            if (to.piece) {
-                swaps.push({
-                    piece: to.piece,
-                    from: to,
-                })
-            }
-            this.turnHistory.push({
-                moveType: moveType,
-                swaps: swaps,
-            })
-        }
-        this.executeTurn(this.turnHistory[this.turnHistory.length - 1])
-        this.processCheckCondition();
-        this.processPromotionCondition();
-    }
-
-    executeTurn(turn: Move, undo: boolean = false) {
-        for (const move of turn.swaps // Order of operations: first promotions & captures, then normal moves.
-            .sort((a, b) => [a, b]
-                .map((m: Swap): number => m.to ? 0 : m.from ? 1 : 2)
-                .reduce((prev, curr, i) => prev + curr * (undo?-1:1) * (i%2?1:-1), 0) // a - b if not undo, b - a if undo
-        )) {
-            if (move.piece) {
-                if (!undo) {
-                    if (move.from && !move.to) { // Capture
-                        move.piece.isCaptured = true
-                        move.from.remove()
-                    } else if (move.from && move.to) { // Normal Move
-                        move.to.place(move.piece)
-                        move.from.remove()
-                    } else if (!move.from && move.to) { // Promotion
-                        move.to.place(move.piece)
-                    }
-                    if (move.piece.firstMovedOnTurn == -1) {
-                        move.piece.firstMovedOnTurn = this.turnHistory.length;
-                    }
-                } else {
-                    if (move.from && !move.to) { // Un-capture
-                        move.piece.isCaptured = false
-                        move.from.place(move.piece)
-                    } else if (move.from && move.to) { // Un-normal Move
-                        move.from.place(move.piece)
-                        move.to.remove()
-                    } else if (!move.from && move.to) { // Promotion
-                        move.to.remove()
-                    }
-                    if (move.piece.firstMovedOnTurn <= this.turnHistory.length + 1) {
-                        move.piece.firstMovedOnTurn = -1;
-                    }
-                }
-            }
-        }
-        this.turn *= -1;
-        this.turnProgress = TurnProgress.IDLE;
-        this.computeTargets();
     }
 
     undo() {
-        if (this.turnHistory.length == 0) {
-            throw new Error("No moves to undo")
+        if (this.moveHistory.length == 0) {
+            this.handleError(new Error("No moves to undo"))
         }
-        const turn = this.turnHistory.pop()
-        this.executeTurn(turn!, true)
-    }
-
-    initPromotion() {
-        this.turnProgress = TurnProgress.PROMOTING;
+        const move = this.moveHistory.pop()
+        this.executeSwaps(move!, true)
     }
 }

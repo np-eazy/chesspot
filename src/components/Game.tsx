@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Color, GameState, TurnProgress } from "../game/GameState";
-import { Cell, CellColor } from "../game/Cell";
+import { Color, GameState, MoveStage } from "../game/GameState";
+import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
 
 export const Game = () => {
@@ -12,31 +12,31 @@ export const Game = () => {
         setGameTick(gameTick + 1)
     }
 
-    const renderCell = (cell: Cell) => {
+    const renderSquare = (square: Square) => {
         return <div style={{
             width: 100,
             height: 100,
-            border: cell.isSelected ? "1px solid blue" : "none",
-            backgroundColor: cell.color == CellColor.DARK ? "#dddddd" : "#ffffff",
+            border: square.isSelected ? "1px solid blue" : "none",
+            backgroundColor: square.color == SquareColor.DARK ? "#dddddd" : "#ffffff",
             display: "flex",
-            alignItems: "center",
             justifyContent: "center"
         }} onMouseDown={() => {
-            gameState.select(cell)
+            // TODO: Make sure only one square is selected
+            gameState.selectAndAdvance(square)
             updateGameState()
         }}>
             <div style={{ fontSize: 12 }}>
-                {cell.targetingPieces.get(Color.WHITE)!.map(piece => piece.symbol).join(" ")}
-                {cell.targetingPieces.get(Color.BLACK)!.map(piece => piece.symbol).join(" ")}
+                {square.targetingPieces.get(Color.WHITE)!.map(piece => piece.symbol).join(" ")}
+                {square.targetingPieces.get(Color.BLACK)!.map(piece => piece.symbol).join(" ")}
             </div>
             <div style={{ fontSize: 80 }}>
-                {cell.piece ? cell.piece.symbol : ""}
+                {square.piece ? square.piece.symbol : ""}
             </div>
         </div>        
     }
 
     return <div>
-        {gameState.turnProgress == TurnProgress.PROMOTING ?
+        {gameState.moveStage == MoveStage.PROMOTING ?
         <PromotionPanel 
             gameState={gameState} 
             callback={() => {
@@ -45,7 +45,7 @@ export const Game = () => {
         /> : null}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 24 }}>
-                {gameState.turn == Color.WHITE ? "White's turn" : "Black's turn"}
+                {gameState.toMove == Color.WHITE ? "White's turn" : "Black's turn"}
             </div>
             <div style={{ fontSize: 24 }} onClick={() => {
                 gameState.undo()
@@ -55,18 +55,18 @@ export const Game = () => {
             </div>
         </div>
         <div style={{ margin: 20, display: 'flex', flexDirection: 'column' }}>
-            {gameState.turn == Color.WHITE ? 
+            {gameState.toMove == Color.WHITE ? 
                 gameState.board.slice().reverse().map((row, index) => {
                     return <div key={gameState.board.length - index - 1} style={{ display: 'flex', flexDirection: 'row' }}>
-                        {row.map((cell) => {
-                            return renderCell(cell)
+                        {row.map((square) => {
+                            return renderSquare(square)
                         })}
                     </div>
                 }) : 
                 gameState.board.map((row, index) => {
                     return <div key={index} style={{ display: 'flex', flexDirection: 'row' }}>
-                        {row.slice().reverse().map((cell) => {
-                            return renderCell(cell)
+                        {row.slice().reverse().map((square) => {
+                            return renderSquare(square)
                         })}
                     </div>
                 })

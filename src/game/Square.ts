@@ -1,27 +1,27 @@
 import { Color } from "./GameState"
 import { Piece } from "./Piece"
 
-export enum CellColor {
+export enum SquareColor {
     LIGHT = 0,
     DARK = 1,
 }
 
-export type CellProps = {
+export type SquareProps = {
     rank: number
     file: number
 }
 
-export class Cell {
-    color: CellColor
+export class Square {
+    color: SquareColor
     piece?: Piece
     rank: number
     file: number
     isSelected: boolean
     targetingPieces: Map<Color, Piece[]>
-    constructor(props: CellProps) {
+    constructor(props: SquareProps) {
         this.rank = props.rank
         this.file = props.file
-        this.color = props.rank % 2 === props.file % 2 ? CellColor.LIGHT : CellColor.DARK
+        this.color = props.rank % 2 === props.file % 2 ? SquareColor.LIGHT : SquareColor.DARK
         this.isSelected = false
         this.targetingPieces = new Map<Color, Piece[]>()
         this.targetingPieces.set(Color.WHITE, [])
@@ -30,7 +30,7 @@ export class Cell {
 
     place(piece: Piece) {
         this.piece = piece
-        this.piece.cell = this
+        this.piece.square = this
     }
 
     remove() {
