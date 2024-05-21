@@ -36,6 +36,7 @@ export const validateDiagonal = (gameState: GameState, from: Square, to: Square,
                         }
                     }
                     return batteryCheck(from.piece!, batteryPiece, PieceType.BISHOP)
+                    && batteryPiece!.validateAndGetMoveType(gameState, batteryPiece!.square, to, passive) != MoveType.INVALID
                 } else {
                     return false
                 }
@@ -55,7 +56,8 @@ export const validateStraight = (gameState: GameState, from: Square, to: Square,
                     return false
                 } else {
                     const batteryPiece = gameState.square(from.rank, file).piece
-                    return batteryCheck(from.piece!, batteryPiece!, PieceType.ROOK)
+                    return batteryCheck(from.piece!, batteryPiece!, PieceType.ROOK) 
+                    && batteryPiece!.validateAndGetMoveType(gameState, batteryPiece!.square, to, passive) != MoveType.INVALID
                 }
             }
             file += to.file > from.file ? 1 : -1
@@ -71,6 +73,7 @@ export const validateStraight = (gameState: GameState, from: Square, to: Square,
                 } else {
                     const batteryPiece = gameState.square(rank, from.file).piece
                     return batteryCheck(from.piece!, batteryPiece!, PieceType.ROOK)
+                    && batteryPiece!.validateAndGetMoveType(gameState, batteryPiece!.square, to, passive) != MoveType.INVALID
                 }
             }
             rank += to.rank > from.rank ? 1 : -1

@@ -1,10 +1,10 @@
 import { Color, GameCondition, GameState, Move, MoveType, Swap } from "../GameState";
-import { Piece, PieceType } from "../Piece";
-import { getAllLegalMoves, getCapturedPiece, isEquivalentMove, oppositeOf } from "./moveUtils";
+import { PieceType } from "../Piece";
+import { getCapturedPiece, isEquivalentMove, oppositeOf } from "./moveUtils";
 
 export const inCheck = (gameState: GameState, color: Color): boolean => {
     const king = gameState.pieces.find(piece => piece && (piece.type == PieceType.KING) && (piece.color == color));
-    return king!.square.isAttackedBy(oppositeOf(color)) ?? false;
+    return king!.square.isAttackedBy(oppositeOf(color));
 }
 
 export const evaluateGameCondition = (gameState: GameState): GameCondition => {
@@ -27,17 +27,20 @@ export const evaluateGameCondition = (gameState: GameState): GameCondition => {
             return GameCondition.REPETITION
         }
     }
-    // Check for check and checkmate.
-    const legalMoves = getAllLegalMoves(gameState)
     const currColor = gameState.toMove
     const preventCheck: Move[] = []
+    // TODO: refactor an iterator/callback pattern
+    // TODO: refactor piece selection using new getPieces() in gameState
+    // TODO: refactor inCheck to as a new method in gameState
     if (inCheck(gameState, currColor)) {
-        legalMoves.forEach(move => {
-            gameState.executeSwaps(move, false) // Promotions don't need to be amended in these checks; if the pawn blocks/captures a check, so will its promotion.
-            if (!inCheck(gameState, currColor)) {
-                preventCheck.push(move)
-            }
-            gameState.undo()
+        gameState.pieces.filter(piece => piece && piece.color == currColor && !piece.isCaptured).forEach(piece => {
+            piece.getLegalSquares(gameState).forEach(square => {
+                gameState.manualMove(piece.square, square, false) // This flag must be false otherwise evalCondition will create an infinite loop.
+                if (!inCheck(gameState, currColor)) {
+                    preventCheck.push(gameState.moveHistory[gameState.moveHistory.length - 1])
+                }
+                gameState.undo()
+            })
         })
         if (preventCheck.length == 0) {
             return GameCondition.CHECKMATE

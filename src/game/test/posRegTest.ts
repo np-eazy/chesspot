@@ -1,13 +1,14 @@
 import { compileRawMoves, notateGame } from "../notation"
-import { ITALIAN_OPENING, KASPAROV_V_ANAND, KASPAROV_V_TOPALOV, MORPHY_V_KARL } from "../config/games.ts/testGames"
+import { EN_PASSANT_TEST, ITALIAN_OPENING, KASPAROV_V_ANAND, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST } from "./testGames"
 import { extractRawMoves } from "../utils/notationUtils";
-import { debugDiffs } from "./testUtils";
 
 const showDebug = true;
 export const posRegTest = () => {
     console.log("Performing regression tests");
     [
         ITALIAN_OPENING,
+        EN_PASSANT_TEST,
+        PROMOTION_TEST,
         KASPAROV_V_TOPALOV,
         MORPHY_V_KARL,
         KASPAROV_V_ANAND,
@@ -33,7 +34,7 @@ export const posRegTest = () => {
             showDebug && console.error(`Game ${index+1} notation doesn't recover the original game: `);
             // showDebug && debugDiffs(game, notateGame(gameState));
             showDebug && console.error(`Original Game: ${game}`);
-
+            showDebug && console.error(`Notation Generated: ${notateGame(gameState)}`);
             showDebug && console.error(`Notation-Recovered Game: ${notateGame(recoveredGameState)}`);
             showDebug && console.error(`Regression test ${index+1} failed`);
             return;

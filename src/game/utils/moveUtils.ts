@@ -25,21 +25,20 @@ export const isEquivalentMove = (moveA: Move, moveB: Move): boolean => {
         }).reduce((acc, curr) => acc && curr, true)
 }
 
-export const getAllLegalMoves = (gameState: GameState) => {
-    const piecesToMove = gameState.pieces.filter(piece => piece && piece.color == gameState.toMove && !piece.isCaptured)
-    const legalMoves: Move[] = []
-    piecesToMove.forEach(piece => {
-        piece.getLegalSquares(gameState).forEach(legalSquare => {
-            legalMoves.push({
-                moveType: piece.validateAndGetMoveType(gameState, piece.square, legalSquare, false),
-                swaps: [{
-                    piece: piece,
-                    from: piece.square,
-                    to: legalSquare
-                }]
-            })
-        })
-    })
-    return legalMoves
+export const ambiguityCheck = (gameState: GameState, movingPiece: Piece) => {
+    const toRank = movingPiece.square.rank;
+    const toFile = movingPiece.square.file;
+    let isAmbiguous = false;
+    gameState.historyCallback((gameState: GameState) => {
+        const ambiguousPieces = gameState.pieces.filter(piece => 
+            piece.type == movingPiece.type 
+            && piece != movingPiece
+            && !piece.isCaptured
+            && piece.color == movingPiece.color 
+            && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID)
+        if (ambiguousPieces.length > 0) {
+            isAmbiguous = true;
+        }
+    }, 1)
+    return isAmbiguous;
 }
-

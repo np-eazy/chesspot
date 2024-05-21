@@ -49,8 +49,8 @@ export class Square {
         return `${String.fromCharCode(96 + this.file)}${this.rank}`
     }
 
-    isAttackedBy(color: Color) {
+    isAttackedBy(color: Color): boolean {
         const targetingPieces = this.targetingPieces.get(color)
-        return targetingPieces && targetingPieces.length > 0
+        return targetingPieces!.length > 0
     }
 }

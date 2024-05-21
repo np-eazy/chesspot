@@ -1,7 +1,7 @@
 import { GameCondition, GameState, Move, MoveType } from "./GameState";
 import { Piece, PieceType } from "./Piece";
 import { evaluateGameCondition } from "./utils/conditionEval";
-import { getCapturedPiece } from "./utils/moveUtils";
+import { ambiguityCheck, getCapturedPiece, oppositeOf } from "./utils/moveUtils";
 import { notateFile, notateCoords, notatePieceType, parseCoords, parseFile, parseRank, getPieceType } from "./utils/notationUtils";
 
 export const compileRawMoves = (moves: string[]): GameState => {
@@ -12,7 +12,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
             let movingPiece: Piece
             let toRank: number = 0;
             let toFile: number = 0;
-            let promotion: PieceType | null = null;
+            let promotion: PieceType | undefined;
             try {
                 if (move == "O-O" || move == "0-0") {
                     validPieces.push(...gameState.pieces.filter(piece => piece.type == PieceType.KING && piece.color == gameState.toMove));
@@ -48,7 +48,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
                             throw new Error("Unable to regex-parse pawn move");
                         }
                         if (/^.*[=][NBRQ].*$/.test(move)) {
-                            promotion = getPieceType((move.split("="))[1]![0])!;
+                            promotion = getPieceType((move.split("="))[1]![0]) ?? undefined;
                         }
                     } else {
                         move = move.replace("x","");
@@ -103,23 +103,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
     }
     return gameState;
 }
-export const ambiguityCheck = (gameState: GameState, movingPiece: Piece) => {
-    const toRank = movingPiece.square.rank;
-    const toFile = movingPiece.square.file;
-    let isAmbiguous = false;
-    gameState.historyCallback((gameState: GameState) => {
-        const ambiguousPieces = gameState.pieces.filter(piece => 
-            piece.type == movingPiece.type 
-            && piece != movingPiece
-            && !piece.isCaptured
-            && piece.color == movingPiece.color 
-            && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID)
-        if (ambiguousPieces.length > 0) {
-            isAmbiguous = true;
-        }
-    }, 1)
-    return isAmbiguous;
-}
+
 export const notateLastMove = (gameState: GameState): string => {
     const move = gameState.moveHistory[gameState.moveHistory.length - 1];
     if (move.moveType == MoveType.CASTLE) {
@@ -131,7 +115,8 @@ export const notateLastMove = (gameState: GameState): string => {
     let promotionPiece: Piece | undefined = undefined;
     if (move.moveType == MoveType.PROMOTION) {
         movingPiece = move.swaps.find(swap => swap.piece?.type == PieceType.PAWN)!.piece!;
-        promotionPiece = move.swaps.find(swap => !swap.from)!.piece;
+        promotionPiece = move.swaps.find(swap => !swap.from && swap.piece!.color == movingPiece.color)!.piece;
+        capturedPiece = move.swaps.find(swap => !swap.to && swap.piece!.color == oppositeOf(movingPiece.color))?.piece;
     } else {
         movingPiece = move.swaps.find(swap => swap.to)!.piece!;
         capturedPiece = getCapturedPiece(move);
@@ -144,9 +129,11 @@ export const notateLastMove = (gameState: GameState): string => {
                 notation = notateFile(movingPiece.square.file) + "x"
             }, 1);
         } 
-        notation += notateCoords(movingPiece.square.rank, movingPiece.square.file)
         if (move.moveType == MoveType.PROMOTION) {
+            notation += notateCoords(promotionPiece!.square.rank, promotionPiece!.square.file)
             notation += "=" + notatePieceType(promotionPiece!.type);
+        } else {
+            notation += notateCoords(movingPiece.square.rank, movingPiece.square.file)
         }
     } else {
         notation += notatePieceType(movingPiece.type);
@@ -172,7 +159,7 @@ export const notateLastMove = (gameState: GameState): string => {
         notation += "=";
     }
     if (move.moveType == MoveType.EN_PASSANT) {
-        notation += " (e.p.)";
+        notation += " e.p.";
     }
     return notation
 }

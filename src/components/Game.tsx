@@ -2,13 +2,16 @@ import { useState } from "react";
 import { Color, GameState, MoveStage } from "../game/GameState";
 import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
-import { compileRawMoves } from "../game/notation";
+import { compileRawMoves, notateGame } from "../game/notation";
 import { extractRawMoves } from "../game/utils/notationUtils";
 import { Notation } from "./Notation";
-import { KASPAROV_V_ANAND, KASPAROV_V_TOPALOV, MORPHY_V_KARL } from "../game/config/games.ts/testGames";
+import { KASPAROV_V_ANAND, EN_PASSANT_TEST, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST } from "../game/test/testGames";
 
 export const Game = () => {
-    const [gameState, setGameState] = useState<GameState>(compileRawMoves(extractRawMoves(KASPAROV_V_ANAND)))
+    const [gameState, setGameState] = useState<GameState>(
+        compileRawMoves(extractRawMoves(EN_PASSANT_TEST))
+
+    )
     const [gameTick, setGameTick] = useState<number>(0)
 
     const updateGameState = () => {
@@ -17,7 +20,7 @@ export const Game = () => {
     }
 
     const renderSquare = (square: Square) => {
-        return <div style={{
+        return <div key={square.rank * 8 + square.file} style={{
             width: 100,
             height: 100,
             border: square.isSelected ? "1px solid blue" : "none",
@@ -65,7 +68,7 @@ export const Game = () => {
             {gameState.toMove == Color.WHITE ? 
                 gameState.board.slice().reverse().map((row, index) => {
                     return <div key={gameState.board.length - index - 1} style={{ display: 'flex', flexDirection: 'row' }}>
-                        {row.map((square) => {
+                        {row.map((square, index) => {
                             return renderSquare(square)
                         })}
                     </div>
@@ -79,7 +82,10 @@ export const Game = () => {
                 })
             }
         </div>
-        <Notation gameState={gameState} />
+        {/* <Notation gameState={gameState} /> */}
+        <div>
+            {notateGame(gameState)}
+        </div>
     </div>
     ;
 };

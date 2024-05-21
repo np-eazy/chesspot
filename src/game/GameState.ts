@@ -142,7 +142,8 @@ export class GameState {
         return piece.validateAndGetMoveType(this, from, to, false);
     }
 
-    manualMove(from: Square, to: Square) {
+    // TODO: Split up into smaller, more manageable functions.
+    manualMove(from: Square, to: Square, processConditions: boolean = true) {
         const moveType = this.validateAndGetMoveType(from.piece!, from, to);
         if (moveType == MoveType.INVALID) {
             return
@@ -174,10 +175,12 @@ export class GameState {
             this.executeSwaps({ moveType: moveType, swaps: swaps })
         }
         // Condition processing is done after moving
-        this.processCheckCondition(); 
-        this.processPromotionCondition();
-        this.condition = evaluateGameCondition(this);
-        this.moveHistory[this.moveHistory.length - 1].notation = notateLastMove(this);
+        if (processConditions) {
+            this.processCheckCondition(); 
+            this.processPromotionCondition();
+            this.condition = evaluateGameCondition(this);
+            this.moveHistory[this.moveHistory.length - 1].notation = notateLastMove(this);
+        }
     }
 
     executeSwaps(move: Move, undo: boolean = false) {

@@ -68,5 +68,5 @@ export const extractRawMoves = (source: string): string[] => {
         .split(" ")
         .filter(move => move != "")
         .filter(move => !/^\d+\.?/.test(move))
-        .filter(move => move != "e.p.");
+        .filter(move => move != "e.p." && move != "(e.p.)");
 }
