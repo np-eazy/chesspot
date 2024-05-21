@@ -28,42 +28,19 @@ export const evaluateGameCondition = (gameState: GameState): GameCondition => {
         }
     }
     const currColor = gameState.toMove
-    const preventCheck: Move[] = []
-    // TODO: refactor an iterator/callback pattern
     // TODO: refactor piece selection using new getPieces() in gameState
-    // TODO: refactor inCheck to as a new method in gameState
     if (inCheck(gameState, currColor)) {
-        gameState.pieces.filter(piece => piece && piece.color == currColor && !piece.isCaptured).forEach(piece => {
-            piece.getLegalSquares(gameState).forEach(square => {
-                gameState.manualMove(piece.square, square, false) // This flag must be false otherwise evalCondition will create an infinite loop.
-                if (!inCheck(gameState, currColor)) {
-                    preventCheck.push(gameState.moveHistory[gameState.moveHistory.length - 1])
-                }
-                gameState.undo()
-            })
-        })
-        if (preventCheck.length == 0) {
-            return GameCondition.CHECKMATE
-        } else {
-            return GameCondition.CHECK   
-        }
+        return GameCondition.CHECK
     }
-    // Check for stalemate.
-    const piecesToMove = gameState.pieces.filter(piece => piece && piece.color == gameState.toMove)
-    let hasLegalMoves = false
-    piecesToMove.forEach(piece => {
-        if (piece.getLegalSquares(gameState).length > 0) {
-            hasLegalMoves = true
-        }
-    })
-    if (!hasLegalMoves) {
-        return GameCondition.STALEMATE
-    }
+    // TODO: Fix checkmate and stalemate
+
+    
     // Check for insufficient material
+    const piecesToMove = gameState.pieces.filter(piece => piece && piece.color == gameState.toMove && !piece.isCaptured)
     const totalMaterial = piecesToMove.filter(piece => piece.color == gameState.toMove).map(piece => piece.materialValue).reduce((acc, curr) => acc + curr, 0)
     const totalOpMaterial = piecesToMove.filter(piece => piece.color == oppositeOf(gameState.toMove)).map(piece => piece.materialValue).reduce((acc, curr) => acc + curr, 0)
-    if (!((piecesToMove.filter(piece => piece.type == PieceType.PAWN).length == 0 || totalMaterial >= 5) 
-        || (piecesToMove.filter(piece => piece.type == PieceType.PAWN).length == 0 || totalOpMaterial >= 5))) {
+    if ((piecesToMove.filter(piece => piece.type == PieceType.PAWN).length == 0 && totalMaterial < 5) 
+        && (piecesToMove.filter(piece => piece.type == PieceType.PAWN).length == 0 && totalOpMaterial < 5)) {
         return GameCondition.INSUFFICIENT_MATERIAL
     }
     // Check for pending promotion

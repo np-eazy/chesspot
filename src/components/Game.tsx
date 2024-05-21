@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Color, GameState, MoveStage } from "../game/GameState";
 import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
-import { compileRawMoves, notateGame } from "../game/notation";
-import { extractRawMoves } from "../game/utils/notationUtils";
+import { compilePGN as compileGameStateFromPGN, compileRawMoves, notateGame } from "../game/notation/notation";
+import { extractRawMoves } from "../game/notation/notationUtils";
 import { Notation } from "./Notation";
 import { KASPAROV_V_ANAND, EN_PASSANT_TEST, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST } from "../game/test/testGames";
 
@@ -13,6 +13,8 @@ export const Game = () => {
 
     )
     const [gameTick, setGameTick] = useState<number>(0)
+    const [inputText, setInputText] = useState("");
+
 
     const updateGameState = () => {
         setGameState(gameState)
@@ -42,7 +44,27 @@ export const Game = () => {
         </div>        
     }
 
+
+    const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setInputText(event.target.value);
+    };
+
+    const handleSubmit = () => {
+        setGameState(compileGameStateFromPGN(inputText))
+        // Additional logic to handle the submitted text can be added here
+    };
+
     return <div>
+            <div>
+                <textarea
+                    value={inputText}
+                    onChange={handleInputChange}
+                    placeholder="Enter text here..."
+                    rows={5}
+                    cols={33}
+                />
+                <button onClick={handleSubmit}>Submit</button>
+            </div>
         <div>
             {gameState.condition}
         </div>

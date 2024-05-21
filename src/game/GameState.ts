@@ -1,8 +1,8 @@
 import { Square } from "./Square"
 import { Bishop, King, Knight, Piece, PieceType, Queen, Rook } from "./Piece"
 import { standardPieces } from "./config/standardPieces"
-import { evaluateGameCondition } from "./utils/conditionEval"
-import { notateLastMove } from "./notation"
+import { evaluateGameCondition, inCheck } from "./utils/conditionEval"
+import { notateLastMove } from "./notation/notation"
 import { oppositeOf } from "./utils/moveUtils"
 
 export enum Color {
@@ -175,6 +175,7 @@ export class GameState {
             this.executeSwaps({ moveType: moveType, swaps: swaps })
         }
         // Condition processing is done after moving
+        // TODO: Absorb logic of processCheckCondition and processPromotionCondition into evalCondition
         if (processConditions) {
             this.processCheckCondition(); 
             this.processPromotionCondition();
@@ -230,11 +231,8 @@ export class GameState {
 
     // Check if the current king is in check, or if it is on a square that is being attacked by the opposite color.
     processCheckCondition() {
-        const king = this.pieces.find(piece => piece && (piece.type == PieceType.KING) && (piece.color != this.toMove))
-        if (king) {
-            if (king.square.targetingPieces.get(king.color * -1)!.length > 0) {
-                this.undo();
-            }
+        if (inCheck(this, oppositeOf(this.toMove))) {
+            this.undo();
         }
     }
 

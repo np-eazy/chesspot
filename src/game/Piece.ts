@@ -1,6 +1,7 @@
 import { Square } from "./Square"
 import { Color, GameState, MoveType } from "./GameState"
 import { outOfBounds, validateDiagonal, validateStraight } from "./utils/pathValidation"
+import { oppositeOf } from "./utils/moveUtils"
 
 export type PieceProps = {
     color: Color,
@@ -57,13 +58,7 @@ export class Piece {
         gameState.board.forEach(row => {
             row.forEach(square => {
                 if (this.validateAndGetMoveType(gameState, this.square, square, false) != MoveType.INVALID) {
-                    if (this.type == PieceType.KING) {
-                        if (square.targetingPieces.get(this.color * -1)!.length > 0) {
-                            squares.push(square)
-                        }
-                    } else {
-                        squares.push(square)
-                    }
+                    squares.push(square)
                 }
             })
         })

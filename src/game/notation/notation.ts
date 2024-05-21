@@ -1,9 +1,9 @@
-import { GameCondition, GameState, Move, MoveType } from "./GameState";
-import { Piece, PieceType } from "./Piece";
-import { evaluateGameCondition } from "./utils/conditionEval";
-import { ambiguityCheck, getCapturedPiece, oppositeOf } from "./utils/moveUtils";
-import { notateFile, notateCoords, notatePieceType, parseCoords, parseFile, parseRank, getPieceType } from "./utils/notationUtils";
-
+import { GameCondition, GameState, MoveType } from "../GameState";
+import { Piece, PieceType } from "../Piece";
+import { evaluateGameCondition } from "../utils/conditionEval";
+import { ambiguityCheck, getCapturedPiece, oppositeOf } from "../utils/moveUtils";
+import { notateFile, notateCoords, notatePieceType, parseCoords, parseFile, parseRank, getPieceType, extractRawMoves } from "./notationUtils";
+ 
 export const compileRawMoves = (moves: string[]): GameState => {
     const gameState = new GameState();
     try {
@@ -26,6 +26,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
                     toFile = validPieces[0].square.file - 2;
                 } else {
                     if (/^[a-h].*$/.test(move)) {
+                        // TODO: There exists an edge case with en passant; there are cases where doubled pawns can capture, one normally and one en passant.
                         if (/^[a-h][1-8].*$/.test(move)) {
                             [toFile, toRank] = parseCoords(move.slice(0, 2))!;
                             movingPiece = gameState.pieces.find(piece => 
@@ -33,6 +34,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
                                 && !piece.isCaptured
                                 && piece.color == gameState.toMove
                                 && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
+                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.EN_PASSANT
                             )!;
                         } else if (/^[a-h][x][a-h][1-8].*$/.test(move)) {
                             const fromFile = parseFile(move[0])!;
@@ -176,3 +178,12 @@ export const notateGame = (gameState: GameState): string => {
         return `${i + 1}. ${move[0]} ${move[1]}`
     }).join(" ");
 }
+export const compilePGN = (pgn: string): GameState => {
+    // TODO: Process further info
+    // TODO: Remove bracketed/annotated information between moves
+    const splits = pgn.split("]");
+    const rawMoves = splits[splits.length - 1];
+    return compileRawMoves(extractRawMoves(rawMoves));
+}
+
+

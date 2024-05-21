@@ -63,10 +63,16 @@ export const notatePieceType = (pieceType: PieceType): string => {
     }
 }
 export const extractRawMoves = (source: string): string[] => {
-    return source.replace("\n"," ").replace("\\n"," ").replace(","," ").replace("\t"," ")
-        .replace("!","").replace("?","")
+    const moves = source.replace(/\n/g, " ").replace(/\\n/g, " ").replace(/,/g, " ").replace(/\t/g, " ")
+        .replace(/!/g, "").replace(/\?/g, "")
         .split(" ")
-        .filter(move => move != "")
+        .filter(move => move !== "")
         .filter(move => !/^\d+\.?/.test(move))
-        .filter(move => move != "e.p." && move != "(e.p.)");
+        .filter(move => move !== "e.p." && move !== "(e.p.)");
+    const resultPattern = /\s+(\d+|\d+\/\d+)-(\d+|\d+\/\d+)$/;
+    if (resultPattern.test(moves[moves.length - 1])) {
+        moves.pop();
+    }
+    return moves;
 }
+

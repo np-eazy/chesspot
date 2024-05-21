@@ -1,6 +1,6 @@
-import { compileRawMoves, notateGame } from "../notation"
+import { compileRawMoves, notateGame } from "../notation/notation"
 import { EN_PASSANT_TEST, ITALIAN_OPENING, KASPAROV_V_ANAND, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST } from "./testGames"
-import { extractRawMoves } from "../utils/notationUtils";
+import { extractRawMoves } from "../notation/notationUtils";
 
 const showDebug = true;
 export const posRegTest = () => {
