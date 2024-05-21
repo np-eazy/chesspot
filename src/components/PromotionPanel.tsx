@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { PieceType } from '../game/Piece';
 import { ValidatedGameState } from '../game/GameState';
+import { ManualGameState } from '../game/ui/ManualGameState';
 
 export default function PromotionPanel(props: { 
-    gameState: ValidatedGameState 
+    gameState: ManualGameState 
     callback: () => void
 }) {
     const [selectedPiece, setSelectedPiece] = useState<PieceType>(PieceType.NULL);

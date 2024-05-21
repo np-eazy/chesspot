@@ -11,8 +11,13 @@ export const Notation = (props: {
             moveHistory[i * 2 + 1]?.notation ?? ""
         ]);
     }
-    return <ul>{pairedMoves.map((move: [string, string], i) => {
+    return <div style={{display: 'flex', flexDirection: 'column', alignItems: 'left',
+    width:200}}>
+        <ul>{pairedMoves.map((move: [string, string], i) => {
         return <li key={i}>{`${i + 1}. ${move[0]} ${move[1]}\n`}</li>
     })}</ul>
+    </div>  
+    
+    
 }
 

@@ -48,15 +48,6 @@ export type Move = {
     swaps: Swap[], // Castling, En Passant, and Promotion involve multiple moves per move.
 }
 
-// export class GameState {
-//     board: Square[][]
-//     pieces: Piece[]
-//     toMove: Color
-//     moveHistory: Move[]
-//     undoStack: Move[]
-//     condition: GameCondition
-// }
-
 export class ValidatedGameState {
     board: Square[][]
     pieces: Piece[]

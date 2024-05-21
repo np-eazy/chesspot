@@ -1,6 +1,6 @@
 import { Square } from "../Square";
 import { Color } from "../GameState";
-import { Bishop, King, Knight, Pawn, Queen, Rook } from "../Piece";
+import { Bishop, King, Knight, Pawn, Piece, Queen, Rook } from "../Piece";
 
 export const standardPieces = (board: Square[][]) => {
     return  [
@@ -41,3 +41,9 @@ export const standardPieces = (board: Square[][]) => {
         new Rook({ initRank: 8, initFile: 8, color: Color.BLACK, square: board[7][7] }),
     ];
 }
+
+export const fromFEN = (fen: string): Piece[] => {
+    // TODO: Implement FEN parsing
+    return [];
+}
+

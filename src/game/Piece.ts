@@ -1,6 +1,6 @@
 import { Square } from "./Square"
 import { Color, ValidatedGameState, MoveType } from "./GameState"
-import { outOfBounds, validateDiagonal, validateStraight } from "./utils/pathValidation"
+import { outOfBounds, validateDiagonal, validateStraight } from "./utils/segmentValidation"
 import { oppositeOf } from "./utils/moveUtils"
 
 export type PieceProps = {
@@ -70,7 +70,7 @@ export class Pawn extends Piece {
     constructor(props: PieceProps) {
         super(props);
         this.materialValue = 1;
-        this.symbol = this.color == Color.WHITE ? "♙" : "♟";
+        this.symbol = this.color == Color.BLACK ? "♙" : "♟";
         this.type = PieceType.PAWN
     }
     validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
@@ -124,7 +124,7 @@ export class Knight extends Piece {
     constructor(props: PieceProps) {
         super(props);
         this.materialValue = 3;
-        this.symbol = this.color == Color.WHITE ? "♘" : "♞";
+        this.symbol = this.color == Color.BLACK ? "♘" : "♞";
         this.type = PieceType.KNIGHT
     }
     validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
@@ -142,7 +142,7 @@ export class Bishop extends Piece {
     constructor(props: PieceProps) {
         super(props);
         this.materialValue = 3;
-        this.symbol = this.color == Color.WHITE ? "♗" : "♝";
+        this.symbol = this.color == Color.BLACK ? "♗" : "♝";
         this.type = PieceType.BISHOP
     }
     validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
@@ -158,7 +158,7 @@ export class Rook extends Piece {
     constructor(props: PieceProps) {
         super(props);
         this.materialValue = 5;
-        this.symbol = this.color == Color.WHITE ? "♖" : "♜";
+        this.symbol = this.color == Color.BLACK ? "♖" : "♜";
         this.type = PieceType.ROOK
     }
     validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
@@ -174,7 +174,7 @@ export class Queen extends Piece {
     constructor(props: PieceProps) {
         super(props);
         this.materialValue = 9;
-        this.symbol = this.color == Color.WHITE ? "♕" : "♛";
+        this.symbol = this.color == Color.BLACK ? "♕" : "♛";
         this.type = PieceType.QUEEN
     }
     validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
@@ -193,7 +193,7 @@ export class King extends Piece {
     constructor(props: PieceProps) {
         super(props);
         this.materialValue = 0;
-        this.symbol = this.color == Color.WHITE ? "♔" : "♚";
+        this.symbol = this.color == Color.BLACK ? "♔" : "♚";
         this.type = PieceType.KING
     }
     validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
