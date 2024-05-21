@@ -1,4 +1,4 @@
-import { GameState, Move, MoveType, Swap } from "../GameState"
+import { ValidatedGameState, Move, MoveType, Swap } from "../GameState"
 import { Piece, PieceType } from "../Piece"
 
 export const oppositeOf = (color: number) => {
@@ -25,11 +25,11 @@ export const isEquivalentMove = (moveA: Move, moveB: Move): boolean => {
         }).reduce((acc, curr) => acc && curr, true)
 }
 
-export const ambiguityCheck = (gameState: GameState, movingPiece: Piece) => {
+export const ambiguityCheck = (gameState: ValidatedGameState, movingPiece: Piece) => {
     const toRank = movingPiece.square.rank;
     const toFile = movingPiece.square.file;
     let isAmbiguous = false;
-    gameState.historyCallback((gameState: GameState) => {
+    gameState.historyCallback((gameState: ValidatedGameState) => {
         const ambiguousPieces = gameState.pieces.filter(piece => 
             piece.type == movingPiece.type 
             && piece != movingPiece

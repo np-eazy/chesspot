@@ -1,4 +1,4 @@
-import { Color } from "./GameState"
+import { Color, ValidatedGameState, MoveType } from "./GameState"
 import { Piece } from "./Piece"
 
 export enum SquareColor {
@@ -47,6 +47,16 @@ export class Square {
 
     getName() {
         return `${String.fromCharCode(96 + this.file)}${this.rank}`
+    }
+
+    computeAttackers(gameState: ValidatedGameState) {
+        this.targetingPieces.set(Color.WHITE, [])
+        this.targetingPieces.set(Color.BLACK, [])
+        gameState.pieces.filter((piece: Piece) => !piece.isCaptured).forEach((piece: Piece) => {
+            if (piece && piece.validateAndGetMoveType(gameState, piece.square, this, true) != MoveType.INVALID) {
+                this.targetingPieces.get(piece.color)!.push(piece)
+            }
+        })
     }
 
     isAttackedBy(color: Color): boolean {

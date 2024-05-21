@@ -1,8 +1,8 @@
 import { Square } from "../Square"
-import { GameState, MoveType } from "../GameState"
+import { ValidatedGameState, MoveType } from "../GameState"
 import { Piece, PieceType } from "../Piece"
 
-export const outOfBounds = (gameState: GameState, rank: number, file: number): boolean => {
+export const outOfBounds = (gameState: ValidatedGameState, rank: number, file: number): boolean => {
     return rank < 1 || rank > 8 || file < 1 || file > 8
 }
 
@@ -19,7 +19,7 @@ export const batteryCheck = (mainPiece: Piece, batteryPiece: Piece, pieceType: P
     return true
 }
 
-export const validateDiagonal = (gameState: GameState, from: Square, to: Square, passive: boolean): boolean => {
+export const validateDiagonal = (gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): boolean => {
     let [rank, file] = [from.rank + (to.rank > from.rank ? 1 : -1), from.file + (to.file > from.file ? 1 : -1)]
     while (!outOfBounds(gameState, rank, file) && rank != to.rank && file != to.file) {
         if (gameState.square(rank, file).piece) {
@@ -47,7 +47,7 @@ export const validateDiagonal = (gameState: GameState, from: Square, to: Square,
     return true
 }
 
-export const validateStraight = (gameState: GameState, from: Square, to: Square, passive: boolean): boolean => {
+export const validateStraight = (gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): boolean => {
     if (from.rank == to.rank) {
         let file = from.file + (to.file > from.file ? 1 : -1)
         while (!outOfBounds(gameState, from.rank, file) && file != to.file) {

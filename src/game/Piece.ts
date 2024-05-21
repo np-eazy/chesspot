@@ -1,5 +1,5 @@
 import { Square } from "./Square"
-import { Color, GameState, MoveType } from "./GameState"
+import { Color, ValidatedGameState, MoveType } from "./GameState"
 import { outOfBounds, validateDiagonal, validateStraight } from "./utils/pathValidation"
 import { oppositeOf } from "./utils/moveUtils"
 
@@ -37,7 +37,7 @@ export class Piece {
         this.isCaptured = false
         this.firstMovedOn = -1
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         if (!from.piece) {
             return MoveType.INVALID
         }
@@ -53,7 +53,7 @@ export class Piece {
     getName() {
         return `${this.type} ${String.fromCharCode(96 + this.square.file)}${this.square.rank}`
     }
-    getLegalSquares(gameState: GameState) {
+    getLegalSquares(gameState: ValidatedGameState) {
         const squares: Square[] = []
         gameState.board.forEach(row => {
             row.forEach(square => {
@@ -73,7 +73,7 @@ export class Pawn extends Piece {
         this.symbol = this.color == Color.WHITE ? "♙" : "♟";
         this.type = PieceType.PAWN
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         // Check if pawn is on starting rank and moving 2 steps forward
         if (!passive && from.rank == (this.color == Color.WHITE ? 2 : 7)) {
             if (to.rank - from.rank == 2 * this.color && from.file == to.file) {
@@ -127,7 +127,7 @@ export class Knight extends Piece {
         this.symbol = this.color == Color.WHITE ? "♘" : "♞";
         this.type = PieceType.KNIGHT
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         if (Math.abs(from.rank - to.rank) == 2 && Math.abs(from.file - to.file) == 1) {
             return super.validateAndGetMoveType(gameState, from, to, passive);
         }
@@ -145,7 +145,7 @@ export class Bishop extends Piece {
         this.symbol = this.color == Color.WHITE ? "♗" : "♝";
         this.type = PieceType.BISHOP
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         if ((Math.abs(from.rank - to.rank) == Math.abs(from.file - to.file)) 
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             return validateDiagonal(gameState, from, to, passive) ? MoveType.NORMAL : MoveType.INVALID
@@ -161,7 +161,7 @@ export class Rook extends Piece {
         this.symbol = this.color == Color.WHITE ? "♖" : "♜";
         this.type = PieceType.ROOK
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         if ((from.rank == to.rank || from.file == to.file) 
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             return validateStraight(gameState, from, to, passive) ? MoveType.NORMAL : MoveType.INVALID
@@ -177,7 +177,7 @@ export class Queen extends Piece {
         this.symbol = this.color == Color.WHITE ? "♕" : "♛";
         this.type = PieceType.QUEEN
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         if (super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             if (Math.abs(from.rank - to.rank) == Math.abs(from.file - to.file)) {
                 return validateDiagonal(gameState, from, to, passive) ? MoveType.NORMAL : MoveType.INVALID
@@ -196,7 +196,7 @@ export class King extends Piece {
         this.symbol = this.color == Color.WHITE ? "♔" : "♚";
         this.type = PieceType.KING
     }
-    validateAndGetMoveType(gameState: GameState, from: Square, to: Square, passive: boolean): MoveType {
+    validateAndGetMoveType(gameState: ValidatedGameState, from: Square, to: Square, passive: boolean): MoveType {
         if (Math.abs(from.rank - to.rank) <= 1 && Math.abs(from.file - to.file) <= 1 
             && super.validateAndGetMoveType(gameState, from, to, passive) != MoveType.INVALID) {
             return MoveType.NORMAL
@@ -225,7 +225,7 @@ export class King extends Piece {
         }
         return MoveType.INVALID
     }
-    findCastlingRook(gameState: GameState, from: Square, to: Square): Rook {
+    findCastlingRook(gameState: ValidatedGameState, from: Square, to: Square): Rook {
         const dxn = (to.file - from.file) / 2;
         let file = this.square.file + dxn;
         while (!outOfBounds(gameState, this.square.rank, file) && gameState.square(this.square.rank, file).piece?.type != PieceType.ROOK) {

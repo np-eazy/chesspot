@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Color, GameState, MoveStage } from "../game/GameState";
+import { Color, ValidatedGameState, MoveStage } from "../game/GameState";
+import { ManualGameState } from "../game/ui/ManualGameState";
 import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
 import { compilePGN as compileGameStateFromPGN, compileRawMoves, notateGame } from "../game/notation/notation";
@@ -8,9 +9,8 @@ import { Notation } from "./Notation";
 import { KASPAROV_V_ANAND, EN_PASSANT_TEST, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST } from "../game/test/testGames";
 
 export const Game = () => {
-    const [gameState, setGameState] = useState<GameState>(
-        compileRawMoves(extractRawMoves(EN_PASSANT_TEST))
-
+    const [gameState, setGameState] = useState<ManualGameState>(
+        new ManualGameState(compileRawMoves(extractRawMoves(EN_PASSANT_TEST)))
     )
     const [gameTick, setGameTick] = useState<number>(0)
     const [inputText, setInputText] = useState("");
@@ -50,7 +50,7 @@ export const Game = () => {
     };
 
     const handleSubmit = () => {
-        setGameState(compileGameStateFromPGN(inputText))
+        setGameState(new ManualGameState(compileRawMoves(extractRawMoves(inputText))))
         // Additional logic to handle the submitted text can be added here
     };
 

@@ -1,7 +1,7 @@
-import { GameState } from "../game/GameState"
+import { ValidatedGameState } from "../game/GameState"
 
 export const Notation = (props: {
-    gameState: GameState
+    gameState: ValidatedGameState
 }) => {
     const moveHistory = props.gameState.moveHistory;
     const pairedMoves: [string, string][] = [];

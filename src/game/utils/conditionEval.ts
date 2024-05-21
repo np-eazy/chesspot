@@ -1,13 +1,13 @@
-import { Color, GameCondition, GameState, Move, MoveType, Swap } from "../GameState";
+import { Color, GameCondition, ValidatedGameState, Move, MoveType, Swap } from "../GameState";
 import { PieceType } from "../Piece";
 import { getCapturedPiece, isEquivalentMove, oppositeOf } from "./moveUtils";
 
-export const inCheck = (gameState: GameState, color: Color): boolean => {
+export const inCheck = (gameState: ValidatedGameState, color: Color): boolean => {
     const king = gameState.pieces.find(piece => piece && (piece.type == PieceType.KING) && (piece.color == color));
     return king!.square.isAttackedBy(oppositeOf(color));
 }
 
-export const evaluateGameCondition = (gameState: GameState): GameCondition => {
+export const evaluateGameCondition = (gameState: ValidatedGameState): GameCondition => {
     // Check for 100-move rule.
     if (gameState.moveHistory.length >= 199) {
         const lastMoves: Move[] = gameState.moveHistory.slice(gameState.moveHistory.length - 199, gameState.moveHistory.length)

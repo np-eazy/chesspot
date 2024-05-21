@@ -1,11 +1,11 @@
-import { GameCondition, GameState, MoveType } from "../GameState";
+import { GameCondition, ValidatedGameState, MoveType } from "../GameState";
 import { Piece, PieceType } from "../Piece";
 import { evaluateGameCondition } from "../utils/conditionEval";
 import { ambiguityCheck, getCapturedPiece, oppositeOf } from "../utils/moveUtils";
 import { notateFile, notateCoords, notatePieceType, parseCoords, parseFile, parseRank, getPieceType, extractRawMoves } from "./notationUtils";
  
-export const compileRawMoves = (moves: string[]): GameState => {
-    const gameState = new GameState();
+export const compileRawMoves = (moves: string[]): ValidatedGameState => {
+    const gameState = new ValidatedGameState();
     try {
         moves.forEach(move => {
             const validPieces: Piece[] = [];
@@ -92,7 +92,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
                         }
                     }
                 }
-                gameState.manualMove(movingPiece!.square, gameState.square(toRank, toFile));
+                gameState.attemptMove(movingPiece!.square, gameState.square(toRank, toFile));
                 if (promotion) {
                     gameState.amendPromotionMove(promotion);
                 }
@@ -106,7 +106,7 @@ export const compileRawMoves = (moves: string[]): GameState => {
     return gameState;
 }
 
-export const notateLastMove = (gameState: GameState): string => {
+export const notateLastMove = (gameState: ValidatedGameState): string => {
     const move = gameState.moveHistory[gameState.moveHistory.length - 1];
     if (move.moveType == MoveType.CASTLE) {
         const kingSwap = move.swaps.find(swap => swap.piece?.type == PieceType.KING)!;
@@ -127,7 +127,7 @@ export const notateLastMove = (gameState: GameState): string => {
     let notation = "";
     if (movingPiece.type == PieceType.PAWN) {
         if (capturedPiece) {
-            gameState.historyCallback((gameState: GameState) => {
+            gameState.historyCallback((gameState: ValidatedGameState) => {
                 notation = notateFile(movingPiece.square.file) + "x"
             }, 1);
         } 
@@ -140,7 +140,7 @@ export const notateLastMove = (gameState: GameState): string => {
     } else {
         notation += notatePieceType(movingPiece.type);
         if (ambiguityCheck(gameState, movingPiece)) {
-            gameState.historyCallback((gameState: GameState) => {
+            gameState.historyCallback((gameState: ValidatedGameState) => {
                 notation += notateCoords(movingPiece.square.rank, movingPiece.square.file);
             }, 1);
         }
@@ -165,7 +165,7 @@ export const notateLastMove = (gameState: GameState): string => {
     }
     return notation
 }
-export const notateGame = (gameState: GameState): string => {
+export const notateGame = (gameState: ValidatedGameState): string => {
     const moveHistory = gameState.moveHistory;
     const pairedMoves: [string, string][] = [];
     for (let i = 0; i <= moveHistory.length / 2; i++) {
@@ -178,7 +178,7 @@ export const notateGame = (gameState: GameState): string => {
         return `${i + 1}. ${move[0]} ${move[1]}`
     }).join(" ");
 }
-export const compilePGN = (pgn: string): GameState => {
+export const compilePGN = (pgn: string): ValidatedGameState => {
     // TODO: Process further info
     // TODO: Remove bracketed/annotated information between moves
     const splits = pgn.split("]");
