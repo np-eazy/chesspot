@@ -1,6 +1,9 @@
 import { Square } from "./Square"
 import { Bishop, King, Knight, Piece, PieceType, Queen, Rook } from "./Piece"
 import { standardPieces } from "./config/standardPieces"
+import { evaluateGameCondition } from "./utils/conditionEval"
+import { notateLastMove } from "./notation"
+import { oppositeOf } from "./utils/moveUtils"
 
 export enum Color {
     WHITE = 1,
@@ -21,6 +24,17 @@ export enum MoveType {
     PROMOTION = 3,
 }
 
+export enum GameCondition {
+    NORMAL = "",
+    CHECK = "CHECK",
+    CHECKMATE = "CHECKMATE",
+    STALEMATE = "STALEMATE",
+    REPETITION = "DRAW BY REPETITION",
+    INSUFFICIENT_MATERIAL = "DRAW BY INSUFFICIENT MATERIAL",
+    HUNDRED_MOVES_RULE = "DRAW BY HUNDRED MOVES RULE",
+    PENDING_PROMOTION = "PENDING PROMOTION",
+}
+
 // Each move consists of one or more swaps, and at least one swap must have all three attributes.
 export type Swap = {
     piece?: Piece, // If this is undefined, ignore.
@@ -30,6 +44,7 @@ export type Swap = {
 
 export type Move = {
     moveType: MoveType | null, // If this is null, the move is a normal move.
+    notation?: string,
     swaps: Swap[], // Castling, En Passant, and Promotion involve multiple moves per move.
 }
 
@@ -39,7 +54,9 @@ export class GameState {
     toMove: Color
     moveStage: MoveStage
     moveHistory: Move[]
+    undoStack: Move[]
     selectedSquare: Square | null
+    condition: GameCondition
 
     constructor() {
         this.board = Array.from({ length: 8 }, (_, rank) => {
@@ -55,7 +72,9 @@ export class GameState {
         this.toMove = Color.WHITE
         this.moveStage = MoveStage.IDLE
         this.moveHistory = []
+        this.undoStack = []
         this.selectedSquare = null
+        this.condition = GameCondition.NORMAL
     }
 
     handleError(e: Error) {
@@ -77,7 +96,7 @@ export class GameState {
         } else if (this.moveStage === MoveStage.MOVING) {
             this.moveStage = MoveStage.IDLE
             if (!square.piece || square.piece.color !== this.toMove) {
-                this.move(this.selectedSquare!, square)
+                this.manualMove(this.selectedSquare!, square)
             }
             this.clearSelection()
         } else if (this.moveStage === MoveStage.PROMOTING) {
@@ -123,7 +142,7 @@ export class GameState {
         return piece.validateAndGetMoveType(this, from, to, false);
     }
 
-    move(from: Square, to: Square) {
+    manualMove(from: Square, to: Square) {
         const moveType = this.validateAndGetMoveType(from.piece!, from, to);
         if (moveType == MoveType.INVALID) {
             return
@@ -155,13 +174,13 @@ export class GameState {
             this.executeSwaps({ moveType: moveType, swaps: swaps })
         }
         // Condition processing is done after moving
-        // If there are illegal situations like entering a check, the move is undone.
         this.processCheckCondition(); 
-        // If a promotion occurs, the executed move in history is amended to include the promotion of user's choice.
         this.processPromotionCondition();
+        this.condition = evaluateGameCondition(this);
+        this.moveHistory[this.moveHistory.length - 1].notation = notateLastMove(this);
     }
 
-    executeSwaps(move: Move, undo: boolean = false, amend: boolean = false) {
+    executeSwaps(move: Move, undo: boolean = false) {
         if (!undo) {
             this.moveHistory.push(move);
         }
@@ -179,6 +198,7 @@ export class GameState {
                         swap.to.place(swap.piece)
                         swap.from.remove()
                     } else if (!swap.from && swap.to) { // Promotion
+                        swap.piece.isCaptured = false
                         swap.to.place(swap.piece)
                     }
                     if (swap.piece.firstMovedOn == -1) {
@@ -191,7 +211,8 @@ export class GameState {
                     } else if (swap.from && swap.to) { // Un-normal Move
                         swap.from.place(swap.piece)
                         swap.to.remove()
-                    } else if (!swap.from && swap.to) { // Promotion
+                    } else if (!swap.from && swap.to) { // Un-Promotion
+                        swap.piece.isCaptured = true
                         swap.to.remove()
                     }
                     if (swap.piece.firstMovedOn <= this.moveHistory.length + 1) {
@@ -200,7 +221,7 @@ export class GameState {
                 }
             }
         }
-        this.toMove *= -1;
+        this.toMove = oppositeOf(this.toMove);
         this.computeTargets();
     }
 
@@ -224,9 +245,6 @@ export class GameState {
             && swap.piece && swap.piece.type == PieceType.PAWN
             && swap.to && swap.to.rank == (swap.piece.color == Color.WHITE ? 8 : 1)) {
                 this.moveStage = MoveStage.PROMOTING;
-                // TODO: No auto-queen, make a feature that allows the user to select a piece to promote to. 
-                // Save executionPromotion for a callback
-                // this.amendPromotionMove(PieceType.QUEEN);
         }
     }
 
@@ -285,6 +303,7 @@ export class GameState {
             moveType: MoveType.PROMOTION,
             swaps: newSwaps,
         });
+        this.moveHistory[this.moveHistory.length - 1].notation = notateLastMove(this);
         this.moveStage = MoveStage.IDLE
     }
 
@@ -294,5 +313,17 @@ export class GameState {
         }
         const move = this.moveHistory.pop()
         this.executeSwaps(move!, true)
+        return move
+    }
+
+    historyCallback(callback: Function, movesAgo: number = 1) {
+        const undoneMoves = [];
+        for (let _ = 0; _ < movesAgo; _++) {
+            undoneMoves.push(this.undo())
+        }
+        callback(this);
+        undoneMoves.reverse().forEach(move => {
+            this.executeSwaps(move!, false)
+        })
     }
 }

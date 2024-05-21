@@ -2,8 +2,10 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css';
 import { Game } from './components/Game';
+import { posRegTest } from './game/test/posRegTest';
 
 function App() {
+  posRegTest();
   return (
     <div className="App">
       <Game />

@@ -48,4 +48,9 @@ export class Square {
     getName() {
         return `${String.fromCharCode(96 + this.file)}${this.rank}`
     }
+
+    isAttackedBy(color: Color) {
+        const targetingPieces = this.targetingPieces.get(color)
+        return targetingPieces && targetingPieces.length > 0
+    }
 }

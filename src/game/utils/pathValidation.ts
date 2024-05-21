@@ -1,6 +1,6 @@
-import { Square } from "./Square"
-import { GameState, MoveType } from "./GameState"
-import { Piece, PieceType } from "./Piece"
+import { Square } from "../Square"
+import { GameState, MoveType } from "../GameState"
+import { Piece, PieceType } from "../Piece"
 
 export const outOfBounds = (gameState: GameState, rank: number, file: number): boolean => {
     return rank < 1 || rank > 8 || file < 1 || file > 8

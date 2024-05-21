@@ -2,9 +2,13 @@ import { useState } from "react";
 import { Color, GameState, MoveStage } from "../game/GameState";
 import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
+import { compileRawMoves } from "../game/notation";
+import { extractRawMoves } from "../game/utils/notationUtils";
+import { Notation } from "./Notation";
+import { KASPAROV_V_ANAND, KASPAROV_V_TOPALOV, MORPHY_V_KARL } from "../game/config/games.ts/testGames";
 
 export const Game = () => {
-    const [gameState, setGameState] = useState<GameState>(new GameState())
+    const [gameState, setGameState] = useState<GameState>(compileRawMoves(extractRawMoves(KASPAROV_V_ANAND)))
     const [gameTick, setGameTick] = useState<number>(0)
 
     const updateGameState = () => {
@@ -36,6 +40,9 @@ export const Game = () => {
     }
 
     return <div>
+        <div>
+            {gameState.condition}
+        </div>
         {gameState.moveStage === MoveStage.PROMOTING &&
         <PromotionPanel 
             gameState={gameState} 
@@ -72,6 +79,7 @@ export const Game = () => {
                 })
             }
         </div>
+        <Notation gameState={gameState} />
     </div>
     ;
 };

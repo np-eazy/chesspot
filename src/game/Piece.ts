@@ -1,6 +1,6 @@
 import { Square } from "./Square"
 import { Color, GameState, MoveType } from "./GameState"
-import { outOfBounds, validateDiagonal, validateStraight } from "./pathValidation"
+import { outOfBounds, validateDiagonal, validateStraight } from "./utils/pathValidation"
 
 export type PieceProps = {
     color: Color,
@@ -52,6 +52,23 @@ export class Piece {
     getName() {
         return `${this.type} ${String.fromCharCode(96 + this.square.file)}${this.square.rank}`
     }
+    getLegalSquares(gameState: GameState) {
+        const squares: Square[] = []
+        gameState.board.forEach(row => {
+            row.forEach(square => {
+                if (this.validateAndGetMoveType(gameState, this.square, square, false) != MoveType.INVALID) {
+                    if (this.type == PieceType.KING) {
+                        if (square.targetingPieces.get(this.color * -1)!.length > 0) {
+                            squares.push(square)
+                        }
+                    } else {
+                        squares.push(square)
+                    }
+                }
+            })
+        })
+        return squares
+    }
 }
 
 export class Pawn extends Piece {
@@ -65,6 +82,9 @@ export class Pawn extends Piece {
         // Check if pawn is on starting rank and moving 2 steps forward
         if (!passive && from.rank == (this.color == Color.WHITE ? 2 : 7)) {
             if (to.rank - from.rank == 2 * this.color && from.file == to.file) {
+                if (gameState.square(from.rank + this.color, to.file).piece) {
+                    return MoveType.INVALID
+                }
                 return super.validateAndGetMoveType(gameState, from, to, passive);
             }
         }
