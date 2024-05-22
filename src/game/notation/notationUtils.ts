@@ -42,6 +42,26 @@ export const getPieceType = (letter: string): PieceType | null => {
             return PieceType.BISHOP;
         case "N":
             return PieceType.KNIGHT;
+        case "P":
+            return PieceType.PAWN;
+        default:
+            return null;
+    }
+}
+export const getLowercasePieceType = (letter: string): PieceType | null => {
+    switch (letter) {
+        case "k":
+            return PieceType.KING;
+        case "q":
+            return PieceType.QUEEN;
+        case "r":
+            return PieceType.ROOK;
+        case "b":
+            return PieceType.BISHOP;
+        case "n":
+            return PieceType.KNIGHT;
+        case "p":
+            return PieceType.PAWN;
         default:
             return null;
     }

@@ -1,8 +1,7 @@
 import { Square } from "./Square"
 import { Bishop, King, Knight, Piece, PieceType, Queen, Rook } from "./Piece"
-import { standardPieces } from "./config/standardPieces"
 import { evaluateGameCondition, inCheck } from "./utils/conditionEval"
-import { notateLastMove } from "./notation/notation"
+import { notateLastMove } from "./notation/compileAndNotateMoves"
 import { oppositeOf } from "./utils/moveUtils"
 
 export enum Color {
@@ -31,7 +30,7 @@ export enum GameCondition {
     STALEMATE = "STALEMATE",
     REPETITION = "DRAW BY REPETITION",
     INSUFFICIENT_MATERIAL = "DRAW BY INSUFFICIENT MATERIAL",
-    HUNDRED_MOVES_RULE = "DRAW BY HUNDRED MOVES RULE",
+    FIFTY_MOVES_RULE = "DRAW BY HUNDRED MOVES RULE",
     PENDING_PROMOTION = "PENDING PROMOTION",
 }
 
@@ -54,6 +53,7 @@ export class ValidatedGameState {
     toMove: Color
     moveHistory: Move[]
     undoStack: Move[]
+    msgLog: any[]
     condition: GameCondition
 
     constructor() {
@@ -62,14 +62,30 @@ export class ValidatedGameState {
                 return new Square({ rank: rank + 1, file: file + 1 })
             })
         })
-        this.pieces = standardPieces(this.board);
-        this.pieces.forEach(piece => {
-            piece.square.place(piece)
-        })
+        this.pieces = [];
         this.toMove = Color.WHITE
         this.moveHistory = []
         this.undoStack = []
         this.condition = GameCondition.NORMAL
+        this.msgLog = [];
+    }
+
+    placePieces(pieces: Piece[]) {
+        this.pieces = pieces;
+        this.pieces.forEach(piece => {
+            piece.square.place(piece)
+        })
+        return this;
+    }
+
+    findPieces(color: Color, pieceType: PieceType, multiple: boolean = false) {
+        return multiple ?
+            this.pieces.filter(piece => piece.color == color && piece.type == pieceType && !piece.isCaptured)
+            : this.pieces.find(piece => piece.color == color && piece.type == pieceType && !piece.isCaptured)
+    }
+
+    getPiecesFromColor(color: Color) {
+        return this.pieces.filter(piece => piece.color == color && !piece.isCaptured)
     }
 
     handleError(e: Error) {
@@ -80,9 +96,15 @@ export class ValidatedGameState {
         return this.board[rank - 1][file - 1]
     }
 
+    lastTurn() {
+        return this.moveHistory[this.moveHistory.length - 1]
+    }
+
     attemptMove(from: Square, to: Square, processConditions: boolean = true) {
-        const moveType = from.piece!.validateAndGetMoveType(this, from, to, false);
+        const moveType = from.piece!.validateAndGetMoveType(from, to, false);
+        this.msgLog.push([[from.rank, from.file,], [to.rank, to.file,], moveType])
         if (moveType == MoveType.INVALID) {
+            // this.msgLog.push("Invalid move: " + from.toString() + " to " + to.toString())
             return
         } else if (moveType == MoveType.EN_PASSANT) {
             this.executeSwaps({
@@ -94,7 +116,7 @@ export class ValidatedGameState {
                 }],
             })
         } else if (moveType == MoveType.CASTLE) {
-            const rook = (from.piece! as King).findCastlingRook(this, from, to)
+            const rook = (from.piece! as King).findCastlingRook(from, to)
             this.executeSwaps({
                 moveType: moveType, // King
                 swaps: [{ piece: from.piece!, from: from, to: to }, 
@@ -191,6 +213,7 @@ export class ValidatedGameState {
                 let promotionPiece;
                 const pieceProps = {
                     color: this.toMove,
+                    gameState: this,
                     initRank: swap.to.rank,
                     initFile: swap.to.file,
                     square: swap.to,

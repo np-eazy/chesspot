@@ -45,15 +45,11 @@ export class Square {
         this.isSelected = false
     }
 
-    getName() {
-        return `${String.fromCharCode(96 + this.file)}${this.rank}`
-    }
-
     computeAttackers(gameState: ValidatedGameState) {
         this.targetingPieces.set(Color.WHITE, [])
         this.targetingPieces.set(Color.BLACK, [])
         gameState.pieces.filter((piece: Piece) => !piece.isCaptured).forEach((piece: Piece) => {
-            if (piece && piece.validateAndGetMoveType(gameState, piece.square, this, true) != MoveType.INVALID) {
+            if (piece && piece.validateAndGetMoveType(piece.square, this, true) != MoveType.INVALID) {
                 this.targetingPieces.get(piece.color)!.push(piece)
             }
         })
@@ -62,5 +58,29 @@ export class Square {
     isAttackedBy(color: Color): boolean {
         const targetingPieces = this.targetingPieces.get(color)
         return targetingPieces!.length > 0
+    }
+
+    isRank(rank: number) {
+        return this.rank == rank
+    }
+
+    isFile(file: number) {
+        return this.file == file
+    }
+
+    sameRankAs(square: Square) {
+        return this.rank == square.rank
+    }
+
+    sameFileAs(square: Square) {
+        return this.file == square.file
+    }
+
+    sameCoords(rank: number, file: number) {
+        return this.rank == rank && this.file == file
+    }
+
+    isEmpty() {
+        return !this.piece
     }
 }

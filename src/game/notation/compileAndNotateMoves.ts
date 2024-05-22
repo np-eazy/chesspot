@@ -2,10 +2,13 @@ import { GameCondition, ValidatedGameState, MoveType } from "../GameState";
 import { Piece, PieceType } from "../Piece";
 import { evaluateGameCondition } from "../utils/conditionEval";
 import { ambiguityCheck, getCapturedPiece, oppositeOf } from "../utils/moveUtils";
+import { initializeFEN } from "./compileAndNotateFiles";
 import { notateFile, notateCoords, notatePieceType, parseCoords, parseFile, parseRank, getPieceType, extractRawMoves } from "./notationUtils";
+import { STANDARD_FEN } from "./standardFEN";
  
 export const compileRawMoves = (moves: string[]): ValidatedGameState => {
     const gameState = new ValidatedGameState();
+    initializeFEN(gameState, STANDARD_FEN);
     try {
         moves.forEach(move => {
             const validPieces: Piece[] = [];
@@ -33,8 +36,8 @@ export const compileRawMoves = (moves: string[]): ValidatedGameState => {
                                 piece.type == PieceType.PAWN 
                                 && !piece.isCaptured
                                 && piece.color == gameState.toMove
-                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
-                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.EN_PASSANT
+                                && piece.validateAndGetMoveType(piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
+                                && piece.validateAndGetMoveType(piece.square, gameState.square(toRank, toFile), false) != MoveType.EN_PASSANT
                             )!;
                         } else if (/^[a-h][x][a-h][1-8].*$/.test(move)) {
                             const fromFile = parseFile(move[0])!;
@@ -44,7 +47,7 @@ export const compileRawMoves = (moves: string[]): ValidatedGameState => {
                                 && !piece.isCaptured
                                 && piece.color == gameState.toMove
                                 && piece.square.file == fromFile
-                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
+                                && piece.validateAndGetMoveType(piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
                             )!;
                         } else {
                             throw new Error("Unable to regex-parse pawn move");
@@ -61,7 +64,7 @@ export const compileRawMoves = (moves: string[]): ValidatedGameState => {
                                 piece.type == pieceType 
                                 && !piece.isCaptured
                                 && piece.color == gameState.toMove
-                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
+                                && piece.validateAndGetMoveType(piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
                             )!;
                         } else if (/^[NBRQK][a-h][a-h][1-8].*$/.test(move)) {
                             [toFile, toRank] = parseCoords(move.slice(2, 4))!;
@@ -71,7 +74,7 @@ export const compileRawMoves = (moves: string[]): ValidatedGameState => {
                                 && !piece.isCaptured
                                 && piece.color == gameState.toMove
                                 && piece.square.file == fromFile
-                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
+                                && piece.validateAndGetMoveType(piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
                             )!;
                         } else if (/^[NBRQK][1-8][a-h][1-8].*$/.test(move)) {
                             [toFile, toRank] = parseCoords(move.slice(2, 4))!;
@@ -81,7 +84,7 @@ export const compileRawMoves = (moves: string[]): ValidatedGameState => {
                                 && !piece.isCaptured
                                 && piece.color == gameState.toMove
                                 && piece.square.rank == fromRank
-                                && piece.validateAndGetMoveType(gameState, piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
+                                && piece.validateAndGetMoveType(piece.square, gameState.square(toRank, toFile), false) != MoveType.INVALID
                             )!;
                         } else if (/^[NBRQK][a-h][1-8][a-h][1-8].*$/.test(move)) {
                             [toFile, toRank] = parseCoords(move.slice(3,5))!;
@@ -157,7 +160,7 @@ export const notateLastMove = (gameState: ValidatedGameState): string => {
     } else if (gameCondition == GameCondition.STALEMATE 
         || gameCondition == GameCondition.REPETITION
         || gameCondition == GameCondition.INSUFFICIENT_MATERIAL
-        || gameCondition == GameCondition.HUNDRED_MOVES_RULE) {
+        || gameCondition == GameCondition.FIFTY_MOVES_RULE) {
         notation += "=";
     }
     if (move.moveType == MoveType.EN_PASSANT) {
@@ -165,25 +168,3 @@ export const notateLastMove = (gameState: ValidatedGameState): string => {
     }
     return notation
 }
-export const notateGame = (gameState: ValidatedGameState): string => {
-    const moveHistory = gameState.moveHistory;
-    const pairedMoves: [string, string][] = [];
-    for (let i = 0; i <= moveHistory.length / 2; i++) {
-        pairedMoves.push([
-            moveHistory[i * 2]?.notation ?? "",
-            moveHistory[i * 2 + 1]?.notation ?? ""
-        ]);
-    }
-    return pairedMoves.map((move, i) => {
-        return `${i + 1}. ${move[0]} ${move[1]}`
-    }).join(" ");
-}
-export const compilePGN = (pgn: string): ValidatedGameState => {
-    // TODO: Process further info
-    // TODO: Remove bracketed/annotated information between moves
-    const splits = pgn.split("]");
-    const rawMoves = splits[splits.length - 1];
-    return compileRawMoves(extractRawMoves(rawMoves));
-}
-
-

@@ -1,6 +1,6 @@
 import { Color, GameCondition, ValidatedGameState, Move, MoveType, Swap } from "../GameState";
-import { PieceType } from "../Piece";
-import { getCapturedPiece, isEquivalentMove, oppositeOf } from "./moveUtils";
+import { Pawn, Piece, PieceType } from "../Piece";
+import { getCapturedPiece, isCapturingMove, isEquivalentMove, oppositeOf } from "./moveUtils";
 
 export const inCheck = (gameState: ValidatedGameState, color: Color): boolean => {
     const king = gameState.pieces.find(piece => piece && (piece.type == PieceType.KING) && (piece.color == color));
@@ -8,39 +8,38 @@ export const inCheck = (gameState: ValidatedGameState, color: Color): boolean =>
 }
 
 export const evaluateGameCondition = (gameState: ValidatedGameState): GameCondition => {
-    // Check for 100-move rule.
-    if (gameState.moveHistory.length >= 199) {
-        const lastMoves: Move[] = gameState.moveHistory.slice(gameState.moveHistory.length - 199, gameState.moveHistory.length)
+    // Check for 50-move rule.
+    if (gameState.moveHistory.length >= 100) {
+        const lastMoves: Move[] = gameState.moveHistory.slice(gameState.moveHistory.length - 100, gameState.moveHistory.length)
         if (!lastMoves.find(move => getCapturedPiece(move) != undefined)) {
-            return GameCondition.HUNDRED_MOVES_RULE
+            return GameCondition.FIFTY_MOVES_RULE
         }
     }
-    // Check for three-fold repetition.
+
     if (gameState.moveHistory.length >= 9) {
         const lastMoves: Move[] = gameState.moveHistory.slice(gameState.moveHistory.length - 9, gameState.moveHistory.length)
         if (
-            isEquivalentMove(lastMoves[0], lastMoves[4]) && isEquivalentMove(lastMoves[4], lastMoves[8])
+            isEquivalentMove(lastMoves[0], lastMoves[4]) 
             && isEquivalentMove(lastMoves[1], lastMoves[5])
             && isEquivalentMove(lastMoves[2], lastMoves[6])
             && isEquivalentMove(lastMoves[3], lastMoves[7])
+            && isEquivalentMove(lastMoves[4], lastMoves[8])
         ) {
             return GameCondition.REPETITION
         }
     }
-    const currColor = gameState.toMove
     // TODO: refactor piece selection using new getPieces() in gameState
-    if (inCheck(gameState, currColor)) {
+    if (inCheck(gameState, gameState.toMove)) {
         return GameCondition.CHECK
     }
     // TODO: Fix checkmate and stalemate
 
     
     // Check for insufficient material
-    const piecesToMove = gameState.pieces.filter(piece => piece && piece.color == gameState.toMove && !piece.isCaptured)
-    const totalMaterial = piecesToMove.filter(piece => piece.color == gameState.toMove).map(piece => piece.materialValue).reduce((acc, curr) => acc + curr, 0)
-    const totalOpMaterial = piecesToMove.filter(piece => piece.color == oppositeOf(gameState.toMove)).map(piece => piece.materialValue).reduce((acc, curr) => acc + curr, 0)
-    if ((piecesToMove.filter(piece => piece.type == PieceType.PAWN).length == 0 && totalMaterial < 5) 
-        && (piecesToMove.filter(piece => piece.type == PieceType.PAWN).length == 0 && totalOpMaterial < 5)) {
+    const totalMaterial = Piece.totalMaterial(gameState.getPiecesFromColor(gameState.toMove))
+    const totalOpMaterial = Piece.totalMaterial(gameState.getPiecesFromColor(oppositeOf(gameState.toMove)))
+    if ((!gameState.findPieces(gameState.toMove, PieceType.PAWN) && totalMaterial < 5) 
+        && (!gameState.findPieces(oppositeOf(gameState.toMove), PieceType.PAWN) && totalOpMaterial < 5)) {
         return GameCondition.INSUFFICIENT_MATERIAL
     }
     // Check for pending promotion
@@ -48,8 +47,9 @@ export const evaluateGameCondition = (gameState: ValidatedGameState): GameCondit
     const swap = lastMove.swaps.filter(swap => swap.piece && swap.from && swap.to)[0];
     if (swap 
         && lastMove.moveType == MoveType.NORMAL
-        && swap.piece && swap.piece.type == PieceType.PAWN
-        && swap.to && swap.to.rank == (swap.piece.color == Color.WHITE ? 8 : 1)) {
+        && !isCapturingMove(lastMove)
+        && swap.piece?.isType(PieceType.PAWN)
+        && swap.to!.rank == swap.piece.promotionRank()) {
             return GameCondition.PENDING_PROMOTION
     }
     return GameCondition.NORMAL

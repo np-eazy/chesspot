@@ -3,7 +3,7 @@ import { Color, ValidatedGameState, MoveStage } from "../game/GameState";
 import { ManualGameState } from "../game/ui/ManualGameState";
 import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
-import { compilePGN as compileGameStateFromPGN, compileRawMoves, notateGame } from "../game/notation/notation";
+import { compileRawMoves } from "../game/notation/compileAndNotateMoves";
 import { extractRawMoves } from "../game/notation/notationUtils";
 import { Notation } from "./Notation";
 import { KASPAROV_V_ANAND, EN_PASSANT_TEST, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST, ITALIAN_OPENING } from "../game/test/testGames";
@@ -12,10 +12,11 @@ import { RGBColor } from "../graphics/utils";
 import { oppositeOf } from "../game/utils/moveUtils";
 import { Piece, PieceType } from "../game/Piece";
 import { inCheck } from "../game/utils/conditionEval";
+import { notateGame } from "../game/notation/compileAndNotateFiles";
 
 export const Game = () => {
     const [gameState, setGameState] = useState<ManualGameState>(
-        new ManualGameState(compileRawMoves(extractRawMoves(KASPAROV_V_TOPALOV)))
+        new ManualGameState(compileRawMoves(extractRawMoves(ITALIAN_OPENING)))
     )
     const [gameTick, setGameTick] = useState<number>(0)
     const [inputText, setInputText] = useState("");
@@ -37,7 +38,7 @@ export const Game = () => {
     const side = false;
 
     const renderSquare = (square: Square) => {
-        const speed = 0.035;
+        const speed = 0.05;
         const multiplierA = Math.sin(gameTick * speed) * 0.2 * (true ? 1 : -1) + 0.8 * (true ? 1 : -1);
         const multiplierB = Math.cos(gameTick * speed) * 0.2 * (true ? 1 : -1) + 0.8 * (true ? 1 : -1);
 
@@ -45,14 +46,14 @@ export const Game = () => {
         const baseSquareColor: RGBColor = (square.color == SquareColor.DARK ? DARK_SQUARE : LIGHT_SQUARE).copy();
 
         const green = true ? Color.WHITE : Color.BLACK;
-        const defenders = square.targetingPieces.get(green)!.length;
-        const attackers = square.targetingPieces.get(oppositeOf(green))!.length;
-        if (attackers > defenders) {
-            baseSquareColor.addScaledColor(RED, 0.1);
-        } else if (defenders < attackers) {
-            baseSquareColor.addScaledColor(GREEN, 0.1);
+        const greenPieces = square.targetingPieces.get(green)!.length;
+        const redPieces = square.targetingPieces.get(oppositeOf(green))!.length;
+        if (greenPieces > redPieces) {
+            baseSquareColor.addScaledColor(GREEN, 0.1 * (gameState.toMove == oppositeOf(green) ? 1 : multiplierA));
+        } else if (redPieces > greenPieces) {
+            baseSquareColor.addScaledColor(RED, 0.1 * (gameState.toMove == green ? 1 : multiplierB));
         }
-        if (square.piece && (square.piece.color == green) && (defenders == 0)) {
+        if (square.piece && (square.piece.color == green) && (greenPieces == 0)) {
             baseColor.addScaledColor(RED, 1);
         }
 
@@ -63,7 +64,7 @@ export const Game = () => {
                 baseSquareColor.addScaledColor(GREEN, 0.1 * multiplierA);
             } else {
                 baseColor.addScaledColor(RED, 1);
-                baseSquareColor.addScaledColor(RED, 0.1 * multiplierA);
+                baseSquareColor.addScaledColor(RED, 0.1 * multiplierB);
             }
         }
         for (let _ = 0; _ < square.targetingPieces.get(green)!.length; _++) {
@@ -71,18 +72,19 @@ export const Game = () => {
                 const piece = square.targetingPieces.get(green)!.find(piece => 
                     piece == gameState.selectedSquare?.piece);
                 baseColor.addScaledColor(GREEN, piece ? 1 : 0.2 * multiplierA);
-                baseSquareColor.addScaledColor(GREEN, piece ? 0.05 * multiplierA : 0.02);
+                baseSquareColor.addScaledColor(GREEN, piece ? 0.04 * multiplierA : 0.02);
             }
         }
         for (let _ = 0; _ < square.targetingPieces.get(oppositeOf(green))!.length; _++) {
             const piece = square.targetingPieces.get(oppositeOf(green))!.find(piece => piece == gameState.selectedSquare?.piece);
-            baseColor.addScaledColor(RED, piece ? 1 : 0.2 * multiplierB);
+            baseColor.addScaledColor(RED, piece ? 0.2 : 0.05 * multiplierB);
+            // baseSquareColor.addScaledColor(RED, piece ? 0.04 * multiplierB : 0.02);
         }
         if (inCheck(gameState, green)) {
             const king = gameState.pieces.find(piece => piece.color == green && piece.type == PieceType.KING);
             if (square == king!.square) {
                 baseColor.addScaledColor(RED, 0.5 * multiplierB);
-                baseSquareColor.addScaledColor(RED, 0.02 * multiplierB);
+                // baseSquareColor.addScaledColor(RED, 0.02 * multiplierB);
             }
         }
         const fontBase = FONT.copy()
@@ -200,6 +202,9 @@ export const Game = () => {
                     />
                     <button onClick={handleSubmit}>Submit</button>
                      
+                </div>
+                <div>
+                    {gameState.debugDump()}
                 </div>
             </div>
         </div>

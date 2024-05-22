@@ -1,18 +1,22 @@
-import { compileRawMoves, notateGame } from "../notation/notation"
+import { compileRawMoves } from "../notation/compileAndNotateMoves"
 import { EN_PASSANT_TEST, ITALIAN_OPENING, KASPAROV_V_ANAND, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST } from "./testGames"
 import { extractRawMoves } from "../notation/notationUtils";
+import { notateGame } from "../notation/compileAndNotateFiles";
 
 const showDebug = true;
+
 export const posRegTest = () => {
-    console.log("Performing regression tests");
-    [
+    const positiveAutoTestSet = [
         ITALIAN_OPENING,
         EN_PASSANT_TEST,
         PROMOTION_TEST,
         KASPAROV_V_TOPALOV,
         MORPHY_V_KARL,
         KASPAROV_V_ANAND,
-    ].forEach((game, index) => {
+    ]
+
+    console.log("Performing positive regression tests on previous game notations");
+    positiveAutoTestSet.forEach((game, index) => {
         const rawMoves = extractRawMoves(game);
         try {
             const gameState = compileRawMoves(rawMoves);
@@ -49,7 +53,6 @@ export const posRegTest = () => {
             showDebug && console.error(`Regression test ${index+1} failed`);
             return;
         }
-        showDebug && console.log(`Regression test ${index+1} passed`);
+        showDebug && console.log(`Positive regression test ${index+1} passed`);
     })
-    // console.log("Regression tests passed!");
 }

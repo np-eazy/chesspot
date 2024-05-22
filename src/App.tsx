@@ -3,9 +3,11 @@ import logo from './logo.svg';
 import './App.css';
 import { Game } from './components/Game';
 import { posRegTest } from './game/test/posRegTest';
+import { negRegTest } from './game/test/negRegTest';
 
 function App() {
   posRegTest();
+  negRegTest();
   return (
     <div className="App">
       <Game />
