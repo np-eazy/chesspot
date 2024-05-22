@@ -1,9 +1,9 @@
-import { ValidatedGameState } from "../game/GameState"
+import { Board } from "../game/Board"
 
 export const Notation = (props: {
-    gameState: ValidatedGameState
+    board: Board
 }) => {
-    const moveHistory = props.gameState.moveHistory;
+    const moveHistory = props.board.moveHistory;
     const pairedMoves: [string, string][] = [];
     for (let i = 0; i <= moveHistory.length / 2; i++) {
         pairedMoves.push([

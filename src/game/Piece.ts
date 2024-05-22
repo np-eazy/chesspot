@@ -1,14 +1,14 @@
 import { Square } from "./Square"
-import { Color, ValidatedGameState, MoveType } from "./GameState"
+import { Color, Board } from "./Board"
 import { traverseSegment, validateDiagonal, validateStraight } from "./utils/segmentValidation"
-import { colorDxn, fileDiff, fileDxn, isCapturingMove, rankDiff, rankSwapDiff, sameFileSwap,oppositeOf } from "./utils/moveUtils"
+import { MoveType, colorDxn, fileDiff, fileDxn, isCapturingMove, rankDiff, rankSwapDiff, sameFileSwap, oppositeOf } from "./utils/moveUtils"
 
 export type PieceProps = {
     color: Color,
     initRank: number,
     initFile: number,
     square: Square,
-    gameState: ValidatedGameState,
+    board: Board,
 }
 
 export enum PieceType {
@@ -29,7 +29,7 @@ export class Piece {
     type: PieceType
     isCaptured: boolean
     firstMovedOn: number
-    gameState: ValidatedGameState
+    board: Board
     constructor(props: PieceProps) {
         this.materialValue = 0
         this.color = props.color
@@ -38,7 +38,7 @@ export class Piece {
         this.type = PieceType.NULL
         this.isCaptured = false
         this.firstMovedOn = -1
-        this.gameState = props.gameState
+        this.board = props.board
     }
     static totalMaterial(pieces: Piece[]): number {
         return pieces.reduce((total, piece) => total + (piece.isCaptured ? 0 : piece.materialValue), 0)
@@ -68,7 +68,7 @@ export class Piece {
     hasNotMoved(): boolean {
         return this.firstMovedOn == -1
     }
-    
+
 }
 
 export const providePiece = (props: PieceProps, type: PieceType): Piece => {
@@ -100,8 +100,8 @@ export class Pawn extends Piece {
     validateAndGetMoveType(fromSquare: Square, toSquare: Square, passive: boolean): MoveType {
         // Case 1: Pawn is moving forward
         if (!passive && fromSquare.isRank(this.startingRank())) {
-            if (rankDiff(fromSquare, toSquare) == 2*colorDxn(this) && fromSquare.sameFileAs(toSquare)) {
-                return this.gameState.square(fromSquare.rank + colorDxn(this), toSquare.file).isEmpty()
+            if (rankDiff(fromSquare, toSquare) == 2 * colorDxn(this) && fromSquare.sameFileAs(toSquare)) {
+                return this.board.square(fromSquare.rank + colorDxn(this), toSquare.file).isEmpty()
                     ? MoveType.NORMAL
                     : MoveType.INVALID
             }
@@ -111,19 +111,19 @@ export class Pawn extends Piece {
             if (passive || (!toSquare.isEmpty() && !this.sameColorAs(toSquare.piece))) {
                 return MoveType.NORMAL
             } else if (!passive && toSquare.isEmpty()) { // Check if pawn is doing en passant
-                const opPawnSwap = this.gameState.lastTurn().swaps[0]
-                return (!isCapturingMove(this.gameState.lastTurn()) // This guarantees that the last turn swaps only had one element
+                const opPawnSwap = this.board.lastTurn().swaps[0]
+                return (!isCapturingMove(this.board.lastTurn()) // This guarantees that the last turn swaps only had one element
                     && opPawnSwap.piece!.isType(PieceType.PAWN)
                     && sameFileSwap(opPawnSwap)
-                    && rankSwapDiff(opPawnSwap) == 2*colorDxn(opPawnSwap.piece!)
+                    && rankSwapDiff(opPawnSwap) == 2 * colorDxn(opPawnSwap.piece!)
                     && toSquare.isRank(this.enPassantRank())) ? MoveType.EN_PASSANT : MoveType.INVALID
             }
         }
         // Case 3: Move 1 step forward
-        return (!passive 
-            && (rankDiff(fromSquare, toSquare) == colorDxn(this) 
-            && fromSquare.sameFileAs(toSquare)
-            && toSquare.isEmpty()))
+        return (!passive
+            && (rankDiff(fromSquare, toSquare) == colorDxn(this)
+                && fromSquare.sameFileAs(toSquare)
+                && toSquare.isEmpty()))
             ? MoveType.NORMAL
             : MoveType.INVALID;
     }
@@ -137,8 +137,8 @@ export class Knight extends Piece {
         this.type = PieceType.KNIGHT
     }
     validateAndGetMoveType(fromSquare: Square, toSquare: Square, passive: boolean): MoveType {
-        return ((Math.abs(rankDiff(fromSquare, toSquare)) == 2 && Math.abs(fileDiff(fromSquare, toSquare)) == 1) 
-            || (Math.abs(rankDiff(fromSquare, toSquare)) == 1 && Math.abs(fileDiff(fromSquare, toSquare)) == 2)) 
+        return ((Math.abs(rankDiff(fromSquare, toSquare)) == 2 && Math.abs(fileDiff(fromSquare, toSquare)) == 1)
+            || (Math.abs(rankDiff(fromSquare, toSquare)) == 1 && Math.abs(fileDiff(fromSquare, toSquare)) == 2))
             ? MoveType.NORMAL
             : MoveType.INVALID
     }
@@ -152,8 +152,8 @@ export class Bishop extends Piece {
         this.type = PieceType.BISHOP
     }
     validateAndGetMoveType(fromSquare: Square, toSquare: Square, passive: boolean): MoveType {
-        return (Math.abs(rankDiff(fromSquare, toSquare)) == Math.abs(fileDiff(fromSquare, toSquare))) 
-            && validateDiagonal(this.gameState, fromSquare, toSquare, passive)
+        return (Math.abs(rankDiff(fromSquare, toSquare)) == Math.abs(fileDiff(fromSquare, toSquare)))
+            && validateDiagonal(this.board, fromSquare, toSquare, passive)
             ? MoveType.NORMAL
             : MoveType.INVALID
     }
@@ -167,8 +167,8 @@ export class Rook extends Piece {
         this.type = PieceType.ROOK
     }
     validateAndGetMoveType(fromSquare: Square, toSquare: Square, passive: boolean): MoveType {
-        return ((fromSquare.sameRankAs(toSquare) || fromSquare.sameFileAs(toSquare)) 
-            && validateStraight(this.gameState, fromSquare, toSquare, passive))
+        return ((fromSquare.sameRankAs(toSquare) || fromSquare.sameFileAs(toSquare))
+            && validateStraight(this.board, fromSquare, toSquare, passive))
             ? MoveType.NORMAL
             : MoveType.INVALID
     }
@@ -183,10 +183,10 @@ export class Queen extends Piece {
     }
     validateAndGetMoveType(fromSquare: Square, toSquare: Square, passive: boolean): MoveType {
         return (Math.abs(rankDiff(fromSquare, toSquare)) == Math.abs(fileDiff(fromSquare, toSquare))) ?
-            (validateDiagonal(this.gameState, fromSquare, toSquare, passive) ? MoveType.NORMAL : MoveType.INVALID)
-        : (fromSquare.sameRankAs(toSquare) || fromSquare.sameFileAs(toSquare)) ?
-            (validateStraight(this.gameState, fromSquare, toSquare, passive) ? MoveType.NORMAL : MoveType.INVALID)
-        : MoveType.INVALID
+            (validateDiagonal(this.board, fromSquare, toSquare, passive) ? MoveType.NORMAL : MoveType.INVALID)
+            : (fromSquare.sameRankAs(toSquare) || fromSquare.sameFileAs(toSquare)) ?
+                (validateStraight(this.board, fromSquare, toSquare, passive) ? MoveType.NORMAL : MoveType.INVALID)
+                : MoveType.INVALID
     }
 }
 
@@ -200,16 +200,16 @@ export class King extends Piece {
     validateAndGetMoveType(fromSquare: Square, toSquare: Square, passive: boolean): MoveType {
         if (Math.abs(rankDiff(fromSquare, toSquare)) <= 1 && Math.abs(fileDiff(fromSquare, toSquare)) <= 1) {
             return MoveType.NORMAL
-        } else if (!passive && 
-            fromSquare.sameRankAs(toSquare) && Math.abs(fileDiff(fromSquare, toSquare)) == 2 
+        } else if (!passive &&
+            fromSquare.sameRankAs(toSquare) && Math.abs(fileDiff(fromSquare, toSquare)) == 2
             && this.hasNotMoved() // King has not moved
             && !fromSquare.isAttackedBy(oppositeOf(this.color)) // King is not in check
-            && !this.gameState.square(fromSquare.rank, fromSquare.file + fileDxn(fromSquare, toSquare)).isAttackedBy(oppositeOf(this.color))
+            && !this.board.square(fromSquare.rank, fromSquare.file + fileDxn(fromSquare, toSquare)).isAttackedBy(oppositeOf(this.color))
             && !toSquare.isAttackedBy(oppositeOf(this.color)) // King is not castling into check
         ) {
             let moveType: MoveType;
             traverseSegment({
-                gameState: this.gameState,
+                board: this.board,
                 start: fromSquare,
                 fileDxn: fileDxn(fromSquare, toSquare),
                 loopCondition: (square: Square) => square.isEmpty(),
@@ -227,7 +227,7 @@ export class King extends Piece {
     findCastlingRook(fromSquare: Square, toSquare: Square): Rook {
         let rook: Rook | undefined = undefined;
         traverseSegment({
-            gameState: this.gameState,
+            board: this.board,
             start: this.square,
             fileDxn: fileDxn(fromSquare, toSquare),
             loopCondition: (square: Square) => !square.piece?.isType(PieceType.ROOK),

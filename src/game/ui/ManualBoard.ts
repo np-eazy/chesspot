@@ -1,42 +1,46 @@
-import { GameCondition, ValidatedGameState, MoveStage } from "../GameState";
+import { Board } from "../Board";
 import { PieceType } from "../Piece";
 import { Square } from "../Square";
 import { notateLastMove } from "../notation/compileAndNotateMoves";
-import { evaluateGameCondition, inCheck } from "../utils/conditionEval";
+import { GameCondition, evaluateGameCondition, inCheck } from "../GameCondition";
 import { oppositeOf } from "../utils/moveUtils";
 
-export class ManualGameState extends ValidatedGameState {
+export enum MoveStage {
+    IDLE = 0,
+    MOVING = 1,
+    PROMOTING = 2,
+}
+
+export class ManualBoard extends Board {
     moveStage: MoveStage
     selectedSquare: Square | null
 
-    constructor(gameState: ValidatedGameState) {
+    constructor(board: Board) {
         super();
-        this.board = gameState.board;
-        this.pieces = gameState.pieces;
-        this.toMove = gameState.toMove;
-        this.moveHistory = gameState.moveHistory;
-        this.undoStack = gameState.undoStack;
-        this.condition = gameState.condition;
-
+        this.squares = board.squares;
+        this.pieces = board.pieces;
+        this.toMove = board.toMove;
+        this.moveHistory = board.moveHistory;
+        this.undoStack = board.undoStack;
+        this.condition = board.condition;
         this.moveStage = MoveStage.IDLE
         this.selectedSquare = null
-
     }
 
     debugDump(): string {
         return JSON.stringify({
-            // selectedSquare: {
-            //     file: this.selectedSquare?.file,
-            //     rank: this.selectedSquare?.rank,
-            //     piece: {
-            //         type: this.selectedSquare?.piece?.type,
-            //         color: this.selectedSquare?.piece?.color,
-            //         isCaptured: this.selectedSquare?.piece?.isCaptured
-            //     }
-            // },
-            // toMove: this.toMove,
-            // moveStage: this.moveStage,
-            // condition: this.condition ?? "NORMAL",
+            selectedSquare: {
+                file: this.selectedSquare?.file,
+                rank: this.selectedSquare?.rank,
+                piece: {
+                    type: this.selectedSquare?.piece?.type,
+                    color: this.selectedSquare?.piece?.color,
+                    isCaptured: this.selectedSquare?.piece?.isCaptured
+                }
+            },
+            toMove: this.toMove,
+            moveStage: this.moveStage,
+            condition: this.condition ?? "NORMAL",
             messages: this.msgLog
         }, null, 4);
     }
@@ -85,7 +89,7 @@ export class ManualGameState extends ValidatedGameState {
     }
 
     clearSelection() {
-        this.board.forEach(row => {
+        this.squares.forEach(row => {
             row.forEach(square => {
                 square.deselect()
             })

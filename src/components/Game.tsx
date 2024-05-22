@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
-import { Color, ValidatedGameState, MoveStage } from "../game/GameState";
-import { ManualGameState } from "../game/ui/ManualGameState";
+import { Color } from "../game/Board";
+import { ManualBoard, MoveStage } from "../game/ui/ManualBoard";
 import { Square, SquareColor } from "../game/Square";
 import PromotionPanel from "./PromotionPanel";
 import { compileRawMoves } from "../game/notation/compileAndNotateMoves";
 import { extractRawMoves } from "../game/notation/notationUtils";
 import { Notation } from "./Notation";
-import { KASPAROV_V_ANAND, EN_PASSANT_TEST, KASPAROV_V_TOPALOV, MORPHY_V_KARL, PROMOTION_TEST, ITALIAN_OPENING } from "../game/test/testGames";
+import { ITALIAN_OPENING } from "../game/test/testGames";
 import { DARK_SQUARE, FONT, GREEN, LIGHT_SQUARE, RED } from "../graphics/colors";
 import { RGBColor } from "../graphics/utils";
 import { oppositeOf } from "../game/utils/moveUtils";
-import { Piece, PieceType } from "../game/Piece";
-import { inCheck } from "../game/utils/conditionEval";
+import { PieceType } from "../game/Piece";
+import { inCheck } from "../game/GameCondition";
 import { notateGame } from "../game/notation/compileAndNotateFiles";
 
 export const Game = () => {
-    const [gameState, setGameState] = useState<ManualGameState>(
-        new ManualGameState(compileRawMoves(extractRawMoves(ITALIAN_OPENING)))
+    const [board, setBoard] = useState<ManualBoard>(
+        new ManualBoard(compileRawMoves(extractRawMoves(ITALIAN_OPENING)))
     )
     const [gameTick, setGameTick] = useState<number>(0)
     const [inputText, setInputText] = useState("");
@@ -30,8 +30,8 @@ export const Game = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const updateGameState = () => {
-        setGameState(gameState)
+    const updateBoard = () => {
+        setBoard(board)
         setGameTick(gameTick + 1)
     }
 
@@ -49,17 +49,17 @@ export const Game = () => {
         const greenPieces = square.targetingPieces.get(green)!.length;
         const redPieces = square.targetingPieces.get(oppositeOf(green))!.length;
         if (greenPieces > redPieces) {
-            baseSquareColor.addScaledColor(GREEN, 0.1 * (gameState.toMove == oppositeOf(green) ? 1 : multiplierA));
+            baseSquareColor.addScaledColor(GREEN, 0.1 * (board.toMove == oppositeOf(green) ? 1 : multiplierA));
         } else if (redPieces > greenPieces) {
-            baseSquareColor.addScaledColor(RED, 0.1 * (gameState.toMove == green ? 1 : multiplierB));
+            baseSquareColor.addScaledColor(RED, 0.1 * (board.toMove == green ? 1 : multiplierB));
         }
         if (square.piece && (square.piece.color == green) && (greenPieces == 0)) {
             baseColor.addScaledColor(RED, 1);
         }
 
         const hoverPiece = mouseHover ? square.piece : null;
-        if (gameState.selectedSquare == square) {
-            if (gameState.toMove == green) {
+        if (board.selectedSquare == square) {
+            if (board.toMove == green) {
                 baseColor.addScaledColor(GREEN, 1);
                 baseSquareColor.addScaledColor(GREEN, 0.1 * multiplierA);
             } else {
@@ -68,20 +68,20 @@ export const Game = () => {
             }
         }
         for (let _ = 0; _ < square.targetingPieces.get(green)!.length; _++) {
-            if (!inCheck(gameState, green)) {
+            if (!inCheck(board, green)) {
                 const piece = square.targetingPieces.get(green)!.find(piece => 
-                    piece == gameState.selectedSquare?.piece);
+                    piece == board.selectedSquare?.piece);
                 baseColor.addScaledColor(GREEN, piece ? 1 : 0.2 * multiplierA);
                 baseSquareColor.addScaledColor(GREEN, piece ? 0.04 * multiplierA : 0.02);
             }
         }
         for (let _ = 0; _ < square.targetingPieces.get(oppositeOf(green))!.length; _++) {
-            const piece = square.targetingPieces.get(oppositeOf(green))!.find(piece => piece == gameState.selectedSquare?.piece);
+            const piece = square.targetingPieces.get(oppositeOf(green))!.find(piece => piece == board.selectedSquare?.piece);
             baseColor.addScaledColor(RED, piece ? 0.2 : 0.05 * multiplierB);
             // baseSquareColor.addScaledColor(RED, piece ? 0.04 * multiplierB : 0.02);
         }
-        if (inCheck(gameState, green)) {
-            const king = gameState.pieces.find(piece => piece.color == green && piece.type == PieceType.KING);
+        if (inCheck(board, green)) {
+            const king = board.pieces.find(piece => piece.color == green && piece.type == PieceType.KING);
             if (square == king!.square) {
                 baseColor.addScaledColor(RED, 0.5 * multiplierB);
                 // baseSquareColor.addScaledColor(RED, 0.02 * multiplierB);
@@ -113,9 +113,8 @@ export const Game = () => {
                 setMouseHover(false)
             }}
             onMouseDown={() => {
-                // TODO: Make sure only one square is selected
-                gameState.selectAndAdvance(square)
-                updateGameState()
+                board.selectAndAdvance(square)
+                updateBoard()
             }}>
                 <div>
                     {/* <div style={{ fontSize: 12 }}>
@@ -138,7 +137,7 @@ export const Game = () => {
     };
 
     const handleSubmit = () => {
-        setGameState(new ManualGameState(compileRawMoves(extractRawMoves(inputText))))
+        setBoard(new ManualBoard(compileRawMoves(extractRawMoves(inputText))))
         // Additional logic to handle the submitted text can be added here
     };
 
@@ -148,29 +147,29 @@ export const Game = () => {
             <div style={{minWidth: 200}}>
                 <div style={{minHeight: 100}}></div>
                 <div>
-                    {gameState.toMove == Color.WHITE ? "White's turn" : "Black's turn"}
+                    {board.toMove == Color.WHITE ? "White's turn" : "Black's turn"}
                 </div>
                 <div>
-                    {gameState.condition}
+                    {board.condition}
                 </div>
                 <div style={{minHeight: 200}}></div>
                 <div style={{ fontSize: 24 }} onClick={() => {
-                    gameState.undo()
-                    updateGameState()
+                    board.undo()
+                    updateBoard()
                 }}>
                     Undo
                 </div>  
             </div>
             <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                 {true ? 
-                    gameState.board.slice().reverse().map((row, index) => {
-                        return <div key={gameState.board.length - index - 1} style={{ display: 'flex', flexDirection: 'row' }}>
+                    board.squares.slice().reverse().map((row, index) => {
+                        return <div key={board.squares.length - index - 1} style={{ display: 'flex', flexDirection: 'row' }}>
                             {row.map((square, index) => {
                                 return renderSquare(square)
                             })}
                         </div>
                     }) : 
-                    gameState.board.map((row, index) => {
+                    board.squares.map((row, index) => {
                         return <div key={index} style={{ display: 'flex', flexDirection: 'row' }}>
                             {row.slice().reverse().map((square) => {
                                 return renderSquare(square)
@@ -181,16 +180,16 @@ export const Game = () => {
             </div>
             <div style={{ marginLeft: 10, minWidth: 400,  }}>
                 <div style={{ width: "100%" }}>
-                    {gameState.moveStage === MoveStage.PROMOTING &&
+                    {board.moveStage === MoveStage.PROMOTING &&
                     <PromotionPanel 
-                        gameState={gameState} 
+                        board={board} 
                         callback={() => {
-                            updateGameState()
+                            updateBoard()
                         }}
                     />}
                 </div>
                 <div style={{minHeight: 100}}></div>
-                <Notation gameState={gameState} />
+                <Notation board={board} />
                 <div style={{minHeight: 100}}></div>
                 <div style={{ marginRight: 10, height: 500 }}>
                     <textarea
@@ -204,12 +203,12 @@ export const Game = () => {
                      
                 </div>
                 <div>
-                    {gameState.debugDump()}
+                    {board.debugDump()}
                 </div>
             </div>
         </div>
         <div>
-            {notateGame(gameState)}
+            {notateGame(board)}
         </div>
     </div>
     ;

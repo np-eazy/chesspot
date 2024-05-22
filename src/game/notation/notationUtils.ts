@@ -1,11 +1,14 @@
 import { PieceType } from "../Piece";
 
+// IMPORTANT: By convention, the typical "file" and "rank" order in coordinates is swapped during code;
+// This is to make more explicit the row-column structure of the 2d arrays. Make sure to check examples and references
+// to know if you are putting the rank and file in the right order.
 export const parseCoords = (coord: string): [number, number] | null => {
     const regex = /^[a-h][1-8]$/;
     if (!regex.test(coord)) {
         return null;
     }
-    return [coord.charCodeAt(0) - 'a'.charCodeAt(0) + 1, coord.charCodeAt(1)   - '1'.charCodeAt(0) + 1];
+    return [coord.charCodeAt(0) - 'a'.charCodeAt(0) + 1, coord.charCodeAt(1) - '1'.charCodeAt(0) + 1];
 }
 export const notateCoords = (rank: number, file: number): string => {
     return `${String.fromCharCode(file + 'a'.charCodeAt(0) - 1)}${rank}`
@@ -95,4 +98,3 @@ export const extractRawMoves = (source: string): string[] => {
     }
     return moves;
 }
-

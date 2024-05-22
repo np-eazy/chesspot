@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { PieceType } from '../game/Piece';
-import { ValidatedGameState } from '../game/GameState';
-import { ManualGameState } from '../game/ui/ManualGameState';
+import { Board } from '../game/Board';
+import { ManualBoard } from '../game/ui/ManualBoard';
 
 export default function PromotionPanel(props: { 
-    gameState: ManualGameState 
+    board: ManualBoard 
     callback: () => void
 }) {
     const [selectedPiece, setSelectedPiece] = useState<PieceType>(PieceType.NULL);
 
     const handleSelectChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const newPieceType = event.target.value as PieceType;
-        props.gameState.amendPromotionMove(newPieceType);
+        props.board.amendPromotionMove(newPieceType);
         props.callback();
     };
     return (

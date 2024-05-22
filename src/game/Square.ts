@@ -1,5 +1,6 @@
-import { Color, ValidatedGameState, MoveType } from "./GameState"
+import { Color, Board } from "./Board"
 import { Piece } from "./Piece"
+import { MoveType } from "./utils/moveUtils"
 
 export enum SquareColor {
     LIGHT = 0,
@@ -45,10 +46,10 @@ export class Square {
         this.isSelected = false
     }
 
-    computeAttackers(gameState: ValidatedGameState) {
+    computeAttackers(board: Board) {
         this.targetingPieces.set(Color.WHITE, [])
         this.targetingPieces.set(Color.BLACK, [])
-        gameState.pieces.filter((piece: Piece) => !piece.isCaptured).forEach((piece: Piece) => {
+        board.pieces.filter((piece: Piece) => !piece.isCaptured).forEach((piece: Piece) => {
             if (piece && piece.validateAndGetMoveType(piece.square, this, true) != MoveType.INVALID) {
                 this.targetingPieces.get(piece.color)!.push(piece)
             }

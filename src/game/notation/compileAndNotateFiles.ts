@@ -1,15 +1,15 @@
-import { Color, ValidatedGameState } from "../GameState";
+import { Color, Board } from "../Board";
 import { Piece, PieceType, providePiece } from "../Piece";
 import { compileRawMoves } from "./compileAndNotateMoves";
 import { extractRawMoves, getLowercasePieceType, getPieceType, parseCoords } from "./notationUtils";
 
-export const compilePGN = (pgn: string): ValidatedGameState => {
+export const compilePGN = (pgn: string): Board => {
     const splits = pgn.split("]");
     const rawMoves = splits[splits.length - 1];
     return compileRawMoves(extractRawMoves(rawMoves));
 }
 
-export const initializeFEN = (initState: ValidatedGameState, fen: string): ValidatedGameState => {
+export const initializeFEN = (initState: Board, fen: string): Board => {
     const fields: string[] = fen.split(" ");
     if (fields.length != 6) {
         throw new Error("Invalid FEN format");
@@ -29,12 +29,12 @@ export const initializeFEN = (initState: ValidatedGameState, fen: string): Valid
                     initRank: rankIndex,
                     initFile: fileIndex,
                     square: initState.square(rankIndex + 1, fileIndex + 1),
-                    gameState: initState
+                    board: initState
                 }
                 if (getPieceType(segment)) {
-                    pieces.push(providePiece({...pieceProps, color: Color.BLACK}, getPieceType(segment)!))
+                    pieces.push(providePiece({ ...pieceProps, color: Color.BLACK }, getPieceType(segment)!))
                 } else if (getLowercasePieceType(segment)) {
-                    pieces.push(providePiece({...pieceProps, color: Color.WHITE}, getLowercasePieceType(segment)!))
+                    pieces.push(providePiece({ ...pieceProps, color: Color.WHITE }, getLowercasePieceType(segment)!))
                 } else {
                     console.log(segment)
                     throw new Error("Invalid FEN format: invalid piece symbol");
@@ -70,36 +70,36 @@ export const initializeFEN = (initState: ValidatedGameState, fen: string): Valid
         throw new Error("Invalid FEN format: missing king");
     }
     if (!fields[2].includes("K")) {
-        const piece = pieces.find(piece => 
-            piece.isType(PieceType.ROOK) 
-            && piece.sameColorAs(Color.WHITE) 
+        const piece = pieces.find(piece =>
+            piece.isType(PieceType.ROOK)
+            && piece.sameColorAs(Color.WHITE)
             && piece.square.file > whiteKing.square.file)
         if (piece) {
             piece.firstMovedOn = 0
         }
     }
     if (!fields[2].includes("Q")) {
-        const piece = pieces.find(piece => 
-            piece.isType(PieceType.ROOK) 
-            && piece.sameColorAs(Color.WHITE) 
+        const piece = pieces.find(piece =>
+            piece.isType(PieceType.ROOK)
+            && piece.sameColorAs(Color.WHITE)
             && piece.square.file < whiteKing.square.file)
         if (piece) {
             piece.firstMovedOn = 0
         }
     }
     if (!fields[2].includes("k")) {
-        const piece = pieces.find(piece => 
-            piece.isType(PieceType.ROOK) 
-            && piece.sameColorAs(Color.BLACK) 
+        const piece = pieces.find(piece =>
+            piece.isType(PieceType.ROOK)
+            && piece.sameColorAs(Color.BLACK)
             && piece.square.file > blackKing.square.file)
         if (piece) {
             piece.firstMovedOn = 0
         }
     }
     if (!fields[2].includes("q")) {
-        const piece = pieces.find(piece => 
-            piece.isType(PieceType.ROOK) 
-            && piece.sameColorAs(Color.BLACK) 
+        const piece = pieces.find(piece =>
+            piece.isType(PieceType.ROOK)
+            && piece.sameColorAs(Color.BLACK)
             && piece.square.file < blackKing.square.file)
         if (piece) {
             piece.firstMovedOn = 0
@@ -107,15 +107,15 @@ export const initializeFEN = (initState: ValidatedGameState, fen: string): Valid
     }
 
     // TODO: Handle the last 3 fields 
-    // Field 4: En Passant
 
+    // Field 4: En Passant
     // Field 5 & 6: Halfmove Clock
 
     return initState;
 }
 
-export const notateGame = (gameState: ValidatedGameState): string => {
-    const moveHistory = gameState.moveHistory;
+export const notateGame = (board: Board): string => {
+    const moveHistory = board.moveHistory;
     const pairedMoves: [string, string][] = [];
     for (let i = 0; i <= moveHistory.length / 2; i++) {
         pairedMoves.push([

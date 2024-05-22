@@ -1,54 +1,16 @@
 import { Square } from "./Square"
 import { Bishop, King, Knight, Piece, PieceType, Queen, Rook } from "./Piece"
-import { evaluateGameCondition, inCheck } from "./utils/conditionEval"
+import { GameCondition, evaluateGameCondition, inCheck } from "./GameCondition"
 import { notateLastMove } from "./notation/compileAndNotateMoves"
-import { oppositeOf } from "./utils/moveUtils"
+import { Move, MoveType, Swap, oppositeOf } from "./utils/moveUtils"
 
 export enum Color {
     WHITE = 1,
     BLACK = -1,
 }
 
-export enum MoveStage {
-    IDLE = 0,
-    MOVING = 1,
-    PROMOTING = 2,
-}
-
-export enum MoveType {
-    INVALID = -1,
-    NORMAL = 0,
-    EN_PASSANT = 1,
-    CASTLE = 2,
-    PROMOTION = 3,
-}
-
-export enum GameCondition {
-    NORMAL = "",
-    CHECK = "CHECK",
-    CHECKMATE = "CHECKMATE",
-    STALEMATE = "STALEMATE",
-    REPETITION = "DRAW BY REPETITION",
-    INSUFFICIENT_MATERIAL = "DRAW BY INSUFFICIENT MATERIAL",
-    FIFTY_MOVES_RULE = "DRAW BY HUNDRED MOVES RULE",
-    PENDING_PROMOTION = "PENDING PROMOTION",
-}
-
-// Each move consists of one or more swaps, and at least one swap must have all three attributes.
-export type Swap = {
-    piece?: Piece, // If this is undefined, ignore.
-    from?: Square, // If this is undefined, the piece was promoted.
-    to?: Square, // If this is undefined, the piece was captured.
-}
-
-export type Move = {
-    moveType: MoveType | null, // If this is null, the move is a normal move.
-    notation?: string,
-    swaps: Swap[], // Castling, En Passant, and Promotion involve multiple moves per move.
-}
-
-export class ValidatedGameState {
-    board: Square[][]
+export class Board {
+    squares: Square[][]
     pieces: Piece[]
     toMove: Color
     moveHistory: Move[]
@@ -57,7 +19,7 @@ export class ValidatedGameState {
     condition: GameCondition
 
     constructor() {
-        this.board = Array.from({ length: 8 }, (_, rank) => {
+        this.squares = Array.from({ length: 8 }, (_, rank) => {
             return Array.from({ length: 8 }, (_, file) => {
                 return new Square({ rank: rank + 1, file: file + 1 })
             })
@@ -93,7 +55,7 @@ export class ValidatedGameState {
     }
 
     square(rank: number, file: number) {
-        return this.board[rank - 1][file - 1]
+        return this.squares[rank - 1][file - 1]
     }
 
     lastTurn() {
@@ -109,7 +71,7 @@ export class ValidatedGameState {
         } else if (moveType == MoveType.EN_PASSANT) {
             this.executeSwaps({
                 moveType: moveType, // Capturing pawn
-                swaps: [{ piece: from.piece!, from: from, to: to }, 
+                swaps: [{ piece: from.piece!, from: from, to: to },
                 {
                     piece: this.square(to.rank - this.toMove, to.file).piece!, // Captured pawn
                     from: this.square(to.rank - this.toMove, to.file),
@@ -119,15 +81,15 @@ export class ValidatedGameState {
             const rook = (from.piece! as King).findCastlingRook(from, to)
             this.executeSwaps({
                 moveType: moveType, // King
-                swaps: [{ piece: from.piece!, from: from, to: to }, 
+                swaps: [{ piece: from.piece!, from: from, to: to },
                 {
                     piece: rook, // Rook
                     from: rook.square,
                     to: this.square(rook.square.rank, from.file + (rook.square.file > from.file ? 1 : -1)),
-                }], 
+                }],
             })
-        } else { 
-            const swaps: any[] = [{ piece: from.piece,from: from,to: to }]
+        } else {
+            const swaps: any[] = [{ piece: from.piece, from: from, to: to }]
             if (to.piece) { // Capture
                 swaps.push({ piece: to.piece, from: to })
             }
@@ -137,7 +99,7 @@ export class ValidatedGameState {
             this.processConditionsAfterMove();
         }
     }
-    
+
     processConditionsAfterMove() {
         this.condition = evaluateGameCondition(this);
         if (inCheck(this, oppositeOf(this.toMove))) { // Undo if this move leaves the player in check. This is done after toMove is switched, hence the opposite.
@@ -153,8 +115,8 @@ export class ValidatedGameState {
         for (const swap of move.swaps // Order of operations: first captures, then everything else
             .sort((a, b) => [a, b]
                 .map((m: Swap): number => m.to ? 0 : 1)
-                .reduce((prev, curr, i) => prev + curr * (undo?-1:1) * (i%2?1:-1), 0) // a - b if not undo, b - a if undo
-        )) {
+                .reduce((prev, curr, i) => prev + curr * (undo ? -1 : 1) * (i % 2 ? 1 : -1), 0) // a - b if not undo, b - a if undo
+            )) {
             if (swap.piece) {
                 if (!undo) {
                     if (swap.from && !swap.to) { // Capture
@@ -193,7 +155,7 @@ export class ValidatedGameState {
 
     // Compute which pieces are targeting which square.
     updateTargets() {
-        this.board.forEach(row => {
+        this.squares.forEach(row => {
             row.forEach(square => {
                 square.computeAttackers(this);
             })
@@ -213,7 +175,7 @@ export class ValidatedGameState {
                 let promotionPiece;
                 const pieceProps = {
                     color: this.toMove,
-                    gameState: this,
+                    board: this,
                     initRank: swap.to.rank,
                     initFile: swap.to.file,
                     square: swap.to,
